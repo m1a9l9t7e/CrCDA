@@ -14,11 +14,11 @@ from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 
-
 class Sampler:
 
     samples = None
     features = None
+    labels = None
 
     def __init__(self, sample_shape):  # sample_shape has form (H x W x C)
         self.sample_shape = sample_shape
@@ -44,6 +44,7 @@ class Sampler:
         self.features = None
         for sample in tqdm(self.samples, desc='Calculating HOG features'):
             features = get_hog_scikit(sample)
+            # features = np.squeeze(get_hog_cv2(sample))
             if self.features is None:
                 self.features = [features]
             else:
@@ -52,38 +53,51 @@ class Sampler:
         print("HOG Feature Vectors:\t{}".format(np.shape(self.features)))
         return self.features
 
-    def reduce_feature_dims(self, n):
+    def reduce_feature_dims(self, n, features=None):
         """
         Reduce dimensionality of features to n
         """
+        if features is None:
+            features = self.features
+
         print("Applying PCA...")
         pca = PCA(n_components=n)
-        reduced = pca.fit_transform(self.features)
+        reduced = pca.fit_transform(features)
         print("PCA Feature Vectors:\t{}".format(np.shape(reduced)))
         return reduced
 
-    def cluster_samples(self, X):
+    def cluster_samples(self, features=None):
         """
         Clusters samples in self.samples by their corresponding feature vector.
         """
-        X = StandardScaler().fit_transform(X)
+        if features is None:
+            features = self.features
+
+        # features = StandardScaler().fit_transform(features)  # needed?
+
+        if np.shape(features)[1] > 2:
+            X_2d = self.reduce_feature_dims(2)
+        else:
+            X_2d = features
+
+        X = features
 
         print("Finding Clusters with DBSCAN...")
-        db = DBSCAN(eps=0.3, min_samples=10).fit(X)
+        db = DBSCAN(eps=0.12, min_samples=10).fit(X)
         core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
         core_samples_mask[db.core_sample_indices_] = True
-        labels = db.labels_
+        self.labels = db.labels_
 
         # Number of clusters in labels, ignoring noise if present.
-        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-        n_noise_ = list(labels).count(-1)
+        n_clusters_ = len(set(self.labels)) - (1 if -1 in self.labels else 0)
+        n_noise_ = list(self.labels).count(-1)
 
         print('Estimated number of clusters: %d' % n_clusters_)
         print('Estimated number of noise points: %d' % n_noise_)
-        print("Silhouette Coefficient: %0.3f" % metrics.silhouette_score(X, labels))
+        print("Silhouette Coefficient: %0.3f" % metrics.silhouette_score(X, self.labels))
 
         # Black removed and is used for noise instead.
-        unique_labels = set(labels)
+        unique_labels = set(self.labels)
         colors = [plt.cm.Spectral(each)
                   for each in np.linspace(0, 1, len(unique_labels))]
         for k, col in zip(unique_labels, colors):
@@ -91,13 +105,13 @@ class Sampler:
                 # Black used for noise.
                 col = [0, 0, 0, 1]
 
-            class_member_mask = (labels == k)
+            class_member_mask = (self.labels == k)
 
-            xy = X[class_member_mask & core_samples_mask]
+            xy = X_2d[class_member_mask & core_samples_mask]
             plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
                      markeredgecolor='k', markersize=14)
 
-            xy = X[class_member_mask & ~core_samples_mask]
+            xy = X_2d[class_member_mask & ~core_samples_mask]
             plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
                      markeredgecolor='k', markersize=6)
 
@@ -125,21 +139,21 @@ def get_hog_scikit(image):
     return feature_vector
 
 
-def get_hog_cv2(image):
-    winSize = (32, 32)
-    blockSize = (16, 16)
-    blockStride = (8, 8)
-    cellSize = (8, 8)
-    nbins = 9
-    derivAperture = 1
-    winSigma = 4.
-    histogramNormType = 0
-    L2HysThreshold = 2.0000000000000001e-01
-    gammaCorrection = 0
-    nlevels = 64
-    hog_descriptor = cv2.HOGDescriptor(winSize, blockSize, blockStride, cellSize, nbins, derivAperture, winSigma,
-                            histogramNormType, L2HysThreshold, gammaCorrection, nlevels)
+winSize = (32, 32)
+blockSize = (16, 16)
+blockStride = (8, 8)
+cellSize = (8, 8)
+nbins = 9
+derivAperture = 1
+winSigma = 4.
+histogramNormType = 0
+L2HysThreshold = 2.0000000000000001e-01
+gammaCorrection = 0
+nlevels = 64
+hog_descriptor = cv2.HOGDescriptor(winSize, blockSize, blockStride, cellSize, nbins, derivAperture, winSigma,
+                        histogramNormType, L2HysThreshold, gammaCorrection, nlevels)
 
+def get_hog_cv2(image):
     feature_vector = hog_descriptor.compute(image)
     # print("cv2 feature vector: {}".format(np.shape(feature_vector)))
     return feature_vector
@@ -166,12 +180,12 @@ if __name__ == '__main__':
 
         sample_extractor.extract_samples(img)
 
-        if idx > 100:
+        if idx > 10:
             break
 
     print("Extracted Raw Samples:\t{}".format(np.shape(sample_extractor.samples)))
 
     feature_vectors = sample_extractor.calculate_features()
     feature_vectors_2d = sample_extractor.reduce_feature_dims(2)
-    sample_extractor.cluster_samples(feature_vectors_2d)
+    sample_extractor.cluster_samples(features=feature_vectors_2d)
     # print(X)
