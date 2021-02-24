@@ -109,7 +109,7 @@ def show_cluster_examples(samples, labels, n=16):
     for cluster_id in cluster_ids:
         _cluster_samples = cluster_id_to_samples_map[cluster_id]
         image = stitch_images(_cluster_samples, n_rows=4, n_cols=4)
-        cv2.imshow('Cluster {} samples'.format(cluster_id), image)
+        cv2.imshow('Cluster {} samples'.format(cluster_id if cluster_id >= 0 else "NOISE"), image)
         cv2.waitKey(0)
 
 
@@ -136,15 +136,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Image Sampler")
     parser.add_argument("--label_dir", type=str, default='./labels', help="Path to ground truth to extract samples from")
     parser.add_argument("--out", type=str, default="./output", help="Path to output folder")
-    parser.add_argument("--max_images", type=int, default=2, help="Maximum Number of Images to use")
+    parser.add_argument("--max_images", type=int, default=100, help="Maximum Number of Images to use")
     args = parser.parse_args()
 
-    img = cv2.resize(cv2.imread('./labels/00001.png'), (1280, 720))
+    img = cv2.resize(cv2.imread(os.path.join(args.label_dir, os.listdir(args.label_dir)[0])), (1280, 720))
     # sample_shape = [18, 32, img.shape[2]]  # first size
     sample_shape = [36, 64, img.shape[2]]  # second size
 
     # 1. Extract Samples from Ground Truth Images
-    image_paths = sorted([os.path.join('./labels', image_name) for image_name in os.listdir('./labels')])[:args.max_images]
+    image_paths = sorted([os.path.join(args.label_dir, image_name) for image_name in os.listdir(args.label_dir)])[:args.max_images]
     pool = mp.Pool(mp.cpu_count())
     result = pool.map(extract_samples, tqdm(image_paths, desc='Extract samples'))
     samples = np.reshape(result, [-1] + sample_shape)
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     print("PCA Feature Vectors: {}".format(np.shape(feature_vectors_nd)))
 
     # 4. Cluster Samples according to their nd HOG features
-    labels = cluster_samples(feature_vectors_nd, eps=0.1, min_samples=10, visualize=False)
+    labels = cluster_samples(feature_vectors_nd, eps=0.1, min_samples=10, visualize=True)
     print("Sample Cluster Labels: {}".format(np.shape(labels)))
 
     # 5. Show Example Samples for each Cluster
