@@ -19,12 +19,13 @@ def print_red(string):
 
 def extract_samples(image_path):
     """
-    Extracts samples from image and adds them to self.samples
+    Extracts samples with shape sample_shape from single image with equal stride
     :param image_path: path to image
     :param sample_shape: shape of sample (H x W x C)
     :return: array of samples
     """
     image = cv2.imread(image_path)
+    image = cv2.resize(image, (1280, 720))
     samples = sliding_window_view(image, sample_shape)[0::sample_shape[0], 0::sample_shape[1]]
     samples = samples.reshape([-1] + sample_shape)
     return samples
@@ -49,7 +50,7 @@ def reduce_feature_dims(features, n):
 
 def cluster_samples(features, eps=0.1, min_samples=10):
     """
-    Clusters samples in self.samples by their corresponding feature vector.
+    Clusters feature vectors using DBSCAN and show result of 2d transformation
     """
     # features = StandardScaler().fit_transform(features)  # needed?
     if np.shape(features)[1] > 2:
@@ -101,11 +102,12 @@ if __name__ == '__main__':
     parser.add_argument("--out", type=str, default="./samples", help="Path to output folder")
     args = parser.parse_args()
 
-    img = cv2.imread('./labels/00001.png')
-    sample_shape = [64, 64, img.shape[2]]
+    img = cv2.resize(cv2.imread('./labels/00001.png'), (1280, 720))
+    # sample_shape = [18, 32, img.shape[2]]  # first size
+    sample_shape = [36, 64, img.shape[2]]  # second size
 
     # 1. Extract Samples from Ground Truth Images
-    image_paths = [os.path.join('./labels', image_name) for image_name in os.listdir('./labels')[:100]]
+    image_paths = [os.path.join('./labels', image_name) for image_name in os.listdir('./labels')[:10]]
     pool = mp.Pool(mp.cpu_count())
     result = pool.map(extract_samples, tqdm(image_paths, desc='Extract Samples'))
     samples = np.reshape(result, [-1] + sample_shape)
