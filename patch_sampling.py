@@ -118,6 +118,7 @@ def show_cluster_examples(samples, labels, n=16):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Image Sampler")
     parser.add_argument("--label_dir", type=str, default='./labels', help="Path to ground truth to extract samples from")
+    parser.add_argument("--max_images", type=int, default=10, help="Maximum Number of Images to use")
     parser.add_argument("--out", type=str, default="./samples", help="Path to output folder")
     args = parser.parse_args()
 
@@ -126,7 +127,7 @@ if __name__ == '__main__':
     sample_shape = [36, 64, img.shape[2]]  # second size
 
     # 1. Extract Samples from Ground Truth Images
-    image_paths = [os.path.join('./labels', image_name) for image_name in os.listdir('./labels')[:10]]
+    image_paths = sorted([os.path.join('./labels', image_name) for image_name in os.listdir('./labels')])[:args.max_images]
     pool = mp.Pool(mp.cpu_count())
     result = pool.map(extract_samples, tqdm(image_paths, desc='Extract Samples'))
     samples = np.reshape(result, [-1] + sample_shape)
@@ -137,11 +138,11 @@ if __name__ == '__main__':
     feature_vectors = calculate_features_threaded(samples)
     print("HOG Features Vectors: {}".format(np.shape(feature_vectors)))
 
-    # 3. Reduce Dimensionality of HOG Feature vectors to 2
-    feature_vectors_2d = reduce_feature_dims(feature_vectors, 2)
+    # 3. Reduce Dimensionality of HOG Feature vectors to n
+    feature_vectors_2d = reduce_feature_dims(feature_vectors, n=2)
     print("PCA Feature Vectors: {}".format(np.shape(feature_vectors_2d)))
 
-    # 4. Cluster Samples according to their 2d HOG features
+    # 4. Cluster Samples according to their nd HOG features
     labels = cluster_samples(feature_vectors_2d, visualize=False)
     print("Sample Cluster Labels: {}".format(np.shape(labels)))
 
