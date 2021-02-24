@@ -11,6 +11,8 @@ from sklearn import metrics
 from tqdm import tqdm
 import multiprocessing as mp
 from util import stitch_images, print_red
+from pathlib import Path
+import pickle
 
 
 def extract_samples(image_path):
@@ -111,10 +113,10 @@ def show_cluster_examples(samples, labels, n=16):
         cv2.waitKey(0)
 
 
-def generate_image_labels(samples, labels, image_shape, sample_shape, out, one_hot_encoding=True, show_segmented=False):
+def get_image_labels(samples, labels, image_shape, sample_shape, one_hot_encoding=True, show_segmented=False):
     print_red("Generating image labels{}:".format(" with one hot encoding" if one_hot_encoding else ""))
-    w = int(image_size[1] / sample_size[1])
-    h = int(image_size[0] / sample_size[0])
+    w = int(image_shape[1] / sample_shape[1])
+    h = int(image_shape[0] / sample_shape[0])
 
     if show_segmented:
         cv2.imshow('win', stitch_images(list(samples[:h*w]), h, w))
@@ -133,8 +135,8 @@ def generate_image_labels(samples, labels, image_shape, sample_shape, out, one_h
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Image Sampler")
     parser.add_argument("--label_dir", type=str, default='./labels', help="Path to ground truth to extract samples from")
-    parser.add_argument("--out", type=str, default="./samples", help="Path to output folder")
-    parser.add_argument("--max_images", type=int, default=10, help="Maximum Number of Images to use")
+    parser.add_argument("--out", type=str, default="./output", help="Path to output folder")
+    parser.add_argument("--max_images", type=int, default=2, help="Maximum Number of Images to use")
     args = parser.parse_args()
 
     img = cv2.resize(cv2.imread('./labels/00001.png'), (1280, 720))
@@ -151,7 +153,7 @@ if __name__ == '__main__':
 
     # 2. Calculate HOG Feature vector for each sample
     feature_vectors = calculate_features_threaded(samples)
-    print("HOG Features Vectors: {}".format(np.shape(feature_vectors)))
+    print("HOG Feature Vectors: {}".format(np.shape(feature_vectors)))
 
     # 3. Reduce Dimensionality of HOG Feature vectors to n
     feature_vectors_nd = reduce_feature_dims(feature_vectors, n=12)
@@ -164,6 +166,13 @@ if __name__ == '__main__':
     # 5. Show Example Samples for each Cluster
     show_cluster_examples(samples, labels, n=16)
 
-    # 6. Generate 2d labels for each image
-    image_labels = generate_image_labels(samples, labels, np.shape(img), sample_shape, args.out, one_hot_encoding=True)
+    # 6. Generate 2d image-level labels for each image
+    image_labels = get_image_labels(samples, labels, np.shape(img), sample_shape, one_hot_encoding=True)
     print("Image Labels: {}".format(np.shape(image_labels)))
+
+    # 7. Save labels with python pickle
+    os.makedirs(args.out, exist_ok=True)
+    for idx, image_label in enumerate(image_labels):
+        out_path = os.path.join(args.out, Path(image_paths[idx]).stem + '.out')
+        with open(out_path, "wb") as f_out:
+            pickle.dump(image_label, f_out)
