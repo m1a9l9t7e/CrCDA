@@ -1,6 +1,5 @@
 import argparse
 import os
-
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 import cv2
@@ -11,6 +10,7 @@ from sklearn.cluster import DBSCAN
 from sklearn import metrics
 from tqdm import tqdm
 import multiprocessing as mp
+from util import stitch_images
 
 
 def print_red(string):
@@ -48,15 +48,11 @@ def reduce_feature_dims(features, n):
     return reduced
 
 
-def cluster_samples(features, eps=0.1, min_samples=10):
+def cluster_samples(features, eps=0.1, min_samples=10, visualize=False):
     """
     Clusters feature vectors using DBSCAN and show result of 2d transformation
     """
     # features = StandardScaler().fit_transform(features)  # needed?
-    if np.shape(features)[1] > 2:
-        features_2d = reduce_feature_dims(features, 2)
-    else:
-        features_2d = features
 
     print_red("Finding Clusters with DBSCAN:")
     db = DBSCAN(eps=eps, min_samples=min_samples).fit(features)
@@ -72,28 +68,51 @@ def cluster_samples(features, eps=0.1, min_samples=10):
     print('Estimated number of noise points: %d' % n_noise_)
     print("Silhouette Coefficient: %0.3f" % metrics.silhouette_score(features, labels))
 
-    # Black removed and is used for noise instead.
-    unique_labels = set(labels)
-    colors = [plt.cm.Spectral(each) for each in np.linspace(0, 1, len(unique_labels))]
-    for k, col in zip(unique_labels, colors):
-        if k == -1:
-            # Black used for noise.
-            col = [0, 0, 0, 1]
+    if visualize:
+        if np.shape(features)[1] > 2:
+            features_2d = reduce_feature_dims(features, 2)
+        else:
+            features_2d = features
 
-        class_member_mask = (labels == k)
+        # Black removed and is used for noise instead.
+        unique_labels = set(labels)
+        colors = [plt.cm.Spectral(each) for each in np.linspace(0, 1, len(unique_labels))]
+        for k, col in zip(unique_labels, colors):
+            if k == -1:
+                # Black used for noise.
+                col = [0, 0, 0, 1]
 
-        xy = features_2d[class_member_mask & core_samples_mask]
-        plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
-                 markeredgecolor='k', markersize=14)
+            class_member_mask = (labels == k)
 
-        xy = features_2d[class_member_mask & ~core_samples_mask]
-        plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
-                 markeredgecolor='k', markersize=6)
+            xy = features_2d[class_member_mask & core_samples_mask]
+            plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
+                     markeredgecolor='k', markersize=14)
 
-    plt.title('Estimated number of clusters: %d' % n_clusters_)
-    plt.show()
+            xy = features_2d[class_member_mask & ~core_samples_mask]
+            plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
+                     markeredgecolor='k', markersize=6)
+
+        plt.title('Estimated number of clusters: %d' % n_clusters_)
+        plt.show()
 
     return labels
+
+
+def show_cluster_examples(samples, labels, n=16):
+    cluster_ids = set(labels)
+    cluster_id_to_samples_map = dict()
+    for cluster_id in cluster_ids:
+        cluster_id_to_samples_map[cluster_id] = list()
+
+    for idx, label in enumerate(labels):
+        if len(cluster_id_to_samples_map[label]) < n:
+            cluster_id_to_samples_map[label].append(samples[idx])
+
+    for cluster_id in cluster_ids:
+        _cluster_samples = cluster_id_to_samples_map[cluster_id]
+        image = stitch_images(_cluster_samples, n_rows=4, n_cols=4)
+        cv2.imshow('Cluster {} samples'.format(cluster_id), image)
+        cv2.waitKey(0)
 
 
 if __name__ == '__main__':
@@ -123,5 +142,8 @@ if __name__ == '__main__':
     print("PCA Feature Vectors: {}".format(np.shape(feature_vectors_2d)))
 
     # 4. Cluster Samples according to their 2d HOG features
-    labels = cluster_samples(feature_vectors_2d)
+    labels = cluster_samples(feature_vectors_2d, visualize=False)
     print("Sample Cluster Labels: {}".format(np.shape(labels)))
+
+    # 5. Show Example Samples for each Cluster
+    show_cluster_examples(samples, labels, n=16)

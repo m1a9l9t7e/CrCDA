@@ -5,6 +5,37 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def stitch_horizontal(image_top, image_bottom, padding):
+    _shape = np.shape(image_top)
+    image = np.concatenate([image_top, np.ones([padding, _shape[1], _shape[2]], dtype=np.uint8) * 255, image_bottom], axis=0)
+    return image
+
+
+def stitch_vertical(image_left, image_right, padding):
+    _shape = np.shape(image_left)
+    image = np.concatenate([image_left, np.ones([_shape[0], padding, _shape[2]], dtype=np.uint8) * 255, image_right], axis=1)
+    return image
+
+
+def stitch_images(images, n_rows, n_cols, padding=1):
+    if len(images) < n_rows * n_cols:
+        for i in range(n_rows * n_cols - len(images)):
+            images.append(np.ones(np.shape(images[0]), dtype=np.uint8) * 255)
+
+    rows = []
+    for _ in range(n_rows):
+        row = images.pop(0)
+        for _ in range(n_cols - 1):
+            row = stitch_vertical(image_left=row, image_right=images.pop(0), padding=padding)
+        rows.append(row)
+
+    image = rows.pop(0)
+    for row in rows:
+        image = stitch_horizontal(image_top=image, image_bottom=row, padding=padding)
+
+    return image
+
+
 def get_hog_scikit(image):
     """
     Visualization of scikit HOG features
@@ -53,3 +84,9 @@ def get_hog_cv2(image):
     feature_vector = hog_descriptor.compute(image)
     # print("cv2 feature vector: {}".format(np.shape(feature_vector)))
     return feature_vector
+
+
+if __name__ == '__main__':
+    image = stitch_images([cv2.resize(cv2.imread('./labels/00001.png'), (160, 90)) for i in range(16)], n_rows=4, n_cols=3, padding=1)
+    cv2.imshow('win', image)
+    cv2.waitKey(0)
