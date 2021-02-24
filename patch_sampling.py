@@ -50,7 +50,7 @@ def cluster_samples(features, eps=0.1, min_samples=10, visualize=False):
     """
     # features = StandardScaler().fit_transform(features)  # needed?
 
-    print_red("Finding Clusters with DBSCAN:")
+    print_red("Finding clusters with DBSCAN:")
     db = DBSCAN(eps=eps, min_samples=min_samples).fit(features)
     core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
     core_samples_mask[db.core_sample_indices_] = True
@@ -111,11 +111,30 @@ def show_cluster_examples(samples, labels, n=16):
         cv2.waitKey(0)
 
 
+def generate_image_labels(samples, labels, image_shape, sample_shape, out, one_hot_encoding=True, show_segmented=False):
+    print_red("Generating image labels{}:".format(" with one hot encoding" if one_hot_encoding else ""))
+    w = int(image_size[1] / sample_size[1])
+    h = int(image_size[0] / sample_size[0])
+
+    if show_segmented:
+        cv2.imshow('win', stitch_images(list(samples[:h*w]), h, w))
+        cv2.waitKey(0)
+
+    labels = labels + 1  # Needed as currently there is a -1 class for Noise
+
+    if one_hot_encoding:
+        n_classes = len(set(labels))
+        one_hot_targets = np.eye(n_classes)[labels]
+        return np.reshape(one_hot_targets, [-1, h, w, n_classes])
+    else:
+        return np.reshape(labels, [-1, h, w])
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Image Sampler")
     parser.add_argument("--label_dir", type=str, default='./labels', help="Path to ground truth to extract samples from")
-    parser.add_argument("--max_images", type=int, default=10, help="Maximum Number of Images to use")
     parser.add_argument("--out", type=str, default="./samples", help="Path to output folder")
+    parser.add_argument("--max_images", type=int, default=10, help="Maximum Number of Images to use")
     args = parser.parse_args()
 
     img = cv2.resize(cv2.imread('./labels/00001.png'), (1280, 720))
@@ -125,7 +144,7 @@ if __name__ == '__main__':
     # 1. Extract Samples from Ground Truth Images
     image_paths = sorted([os.path.join('./labels', image_name) for image_name in os.listdir('./labels')])[:args.max_images]
     pool = mp.Pool(mp.cpu_count())
-    result = pool.map(extract_samples, tqdm(image_paths, desc='Extract Samples'))
+    result = pool.map(extract_samples, tqdm(image_paths, desc='Extract samples'))
     samples = np.reshape(result, [-1] + sample_shape)
     pool.close()
     print("Extracted Raw Samples: {}".format(np.shape(samples)))
@@ -139,8 +158,12 @@ if __name__ == '__main__':
     print("PCA Feature Vectors: {}".format(np.shape(feature_vectors_nd)))
 
     # 4. Cluster Samples according to their nd HOG features
-    labels = cluster_samples(feature_vectors_nd, visualize=True)
+    labels = cluster_samples(feature_vectors_nd, eps=0.1, min_samples=10, visualize=False)
     print("Sample Cluster Labels: {}".format(np.shape(labels)))
 
     # 5. Show Example Samples for each Cluster
     show_cluster_examples(samples, labels, n=16)
+
+    # 6. Generate 2d labels for each image
+    image_labels = generate_image_labels(samples, labels, np.shape(img), sample_shape, args.out, one_hot_encoding=True)
+    print("Image Labels: {}".format(np.shape(image_labels)))
