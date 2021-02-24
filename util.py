@@ -5,6 +5,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def print_red(string):
+    print('\u001B[31m' + string + '\u001B[0m')
+
+
 def stitch_horizontal(image_top, image_bottom, padding):
     _shape = np.shape(image_top)
     image = np.concatenate([image_top, np.ones([padding, _shape[1], _shape[2]], dtype=np.uint8) * 255, image_bottom], axis=0)

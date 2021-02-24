@@ -10,11 +10,7 @@ from sklearn.cluster import DBSCAN
 from sklearn import metrics
 from tqdm import tqdm
 import multiprocessing as mp
-from util import stitch_images
-
-
-def print_red(string):
-    print('\u001B[31m' + string + '\u001B[0m')
+from util import stitch_images, print_red
 
 
 def extract_samples(image_path):
@@ -139,11 +135,11 @@ if __name__ == '__main__':
     print("HOG Features Vectors: {}".format(np.shape(feature_vectors)))
 
     # 3. Reduce Dimensionality of HOG Feature vectors to n
-    feature_vectors_2d = reduce_feature_dims(feature_vectors, n=2)
-    print("PCA Feature Vectors: {}".format(np.shape(feature_vectors_2d)))
+    feature_vectors_nd = reduce_feature_dims(feature_vectors, n=12)
+    print("PCA Feature Vectors: {}".format(np.shape(feature_vectors_nd)))
 
     # 4. Cluster Samples according to their nd HOG features
-    labels = cluster_samples(feature_vectors_2d, visualize=False)
+    labels = cluster_samples(feature_vectors_nd, visualize=True)
     print("Sample Cluster Labels: {}".format(np.shape(labels)))
 
     # 5. Show Example Samples for each Cluster
