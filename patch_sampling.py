@@ -12,7 +12,9 @@ from sklearn import metrics
 from tqdm import tqdm
 import multiprocessing as mp
 
-print_red = lambda string: '\u001B[31m' + string + '\u001B[0m'
+
+def print_red(string):
+    print('\u001B[31m' + string + '\u001B[0m')
 
 
 def extract_samples(image_path):
@@ -39,24 +41,24 @@ def reduce_feature_dims(features, n):
     """
     Reduce dimensionality of features to n
     """
-    print(print_red("Applying PCA:"))
+    print_red("Applying PCA:")
     pca = PCA(n_components=n)
     reduced = pca.fit_transform(features)
     return reduced
 
 
-def cluster_samples(features):
+def cluster_samples(features, eps=0.1, min_samples=10):
     """
     Clusters samples in self.samples by their corresponding feature vector.
     """
     # features = StandardScaler().fit_transform(features)  # needed?
     if np.shape(features)[1] > 2:
-        featurers_2d = reduce_feature_dims(features, 2)
+        features_2d = reduce_feature_dims(features, 2)
     else:
-        featurers_2d = features
+        features_2d = features
 
-    print(print_red("Finding Clusters with DBSCAN:"))
-    db = DBSCAN(eps=0.12, min_samples=10).fit(features)
+    print_red("Finding Clusters with DBSCAN:")
+    db = DBSCAN(eps=eps, min_samples=min_samples).fit(features)
     core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
     core_samples_mask[db.core_sample_indices_] = True
     labels = db.labels_
@@ -71,8 +73,7 @@ def cluster_samples(features):
 
     # Black removed and is used for noise instead.
     unique_labels = set(labels)
-    colors = [plt.cm.Spectral(each)
-              for each in np.linspace(0, 1, len(unique_labels))]
+    colors = [plt.cm.Spectral(each) for each in np.linspace(0, 1, len(unique_labels))]
     for k, col in zip(unique_labels, colors):
         if k == -1:
             # Black used for noise.
@@ -80,11 +81,11 @@ def cluster_samples(features):
 
         class_member_mask = (labels == k)
 
-        xy = featurers_2d[class_member_mask & core_samples_mask]
+        xy = features_2d[class_member_mask & core_samples_mask]
         plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
                  markeredgecolor='k', markersize=14)
 
-        xy = featurers_2d[class_member_mask & ~core_samples_mask]
+        xy = features_2d[class_member_mask & ~core_samples_mask]
         plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
                  markeredgecolor='k', markersize=6)
 
