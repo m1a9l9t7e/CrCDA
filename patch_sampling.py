@@ -7,10 +7,12 @@ import matplotlib.pyplot as plt
 from skimage.feature import hog
 from sklearn.decomposition import PCA
 from sklearn.cluster import DBSCAN
+import hdbscan
 from sklearn import metrics
 from tqdm import tqdm
 import multiprocessing as mp
 from util import stitch_images, print_red
+from sklearn import decomposition
 from pathlib import Path
 import pickle
 
@@ -46,6 +48,17 @@ def reduce_feature_dims(features, n):
     return reduced
 
 
+def reduce_feature_dims_SVD(features, n):
+    """
+    Reduce dimensionality of features to n
+    Using truncated SVD is supposedly more memory efficient
+    """
+    print_red("Applying PCA (TruncatedSVD):")
+    svd = decomposition.TruncatedSVD(n_components=n, algorithm='arpack')
+    reduced = svd.fit_transform(features)
+    return reduced
+
+
 def cluster_samples(features, eps=0.1, min_samples=10, visualize=False):
     """
     Clusters feature vectors using DBSCAN and show result of 2d transformation
@@ -53,7 +66,9 @@ def cluster_samples(features, eps=0.1, min_samples=10, visualize=False):
     # features = StandardScaler().fit_transform(features)  # needed?
 
     print_red("Finding clusters with DBSCAN:")
-    db = DBSCAN(eps=eps, min_samples=min_samples).fit(features)
+    # db = DBSCAN(eps=eps, min_samples=min_samples).fit(features)
+    # db = DBSCAN(eps=eps, min_samples=min_samples, algorithm='ball_tree').fit(features)
+    db = DBSCAN(eps=eps, min_samples=min_samples, algorithm='ball_tree', metric='haversine').fit(features)
     core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
     core_samples_mask[db.core_sample_indices_] = True
     labels = db.labels_
@@ -96,7 +111,26 @@ def cluster_samples(features, eps=0.1, min_samples=10, visualize=False):
     return labels
 
 
-def show_cluster_examples(samples, labels, n=16):
+def cluster_samples_HDBSCAN(features, min_samples=10):
+    """
+    Clusters feature vectors using DBSCAN and show result of 2d transformation
+    """
+    # features = StandardScaler().fit_transform(features)  # needed?
+
+    print_red("Finding clusters with HDBSCAN:")
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=min_samples)
+    labels = clusterer.fit_predict(features)
+
+    n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+    n_noise_ = list(labels).count(-1)
+
+    print('Estimated number of clusters: %d' % n_clusters_)
+    print('Estimated number of noise points: %d' % n_noise_)
+
+    return labels
+
+
+def show_cluster_examples(samples, labels, n=64):
     cluster_ids = set(labels)
     cluster_id_to_samples_map = dict()
     for cluster_id in cluster_ids:
@@ -108,8 +142,9 @@ def show_cluster_examples(samples, labels, n=16):
 
     for cluster_id in cluster_ids:
         _cluster_samples = cluster_id_to_samples_map[cluster_id]
-        image = stitch_images(_cluster_samples, n_rows=4, n_cols=4)
-        cv2.imshow('Cluster {} samples'.format(cluster_id if cluster_id >= 0 else "NOISE"), image)
+        image = stitch_images(_cluster_samples, n_rows=8, n_cols=8)
+        cv2.imshow("c-id", image)
+        cv2.setWindowTitle("c-id", 'Cluster {} samples (n={})'.format(cluster_id if cluster_id >= 0 else "NOISE", list(labels).count(cluster_id)))
         cv2.waitKey(0)
 
 
@@ -134,9 +169,9 @@ def get_image_labels(samples, labels, image_shape, sample_shape, one_hot_encodin
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Image Sampler")
-    parser.add_argument("--label_dir", type=str, default='./labels', help="Path to ground truth to extract samples from")
+    parser.add_argument("--label_dir", type=str, default='./data/gta5_labels', help="Path to ground truth to extract samples from")
     parser.add_argument("--out", type=str, default="./output", help="Path to output folder")
-    parser.add_argument("--max_images", type=int, default=100, help="Maximum Number of Images to use")
+    parser.add_argument("--max_images", type=int, default=500, help="Maximum Number of Images to use")
     args = parser.parse_args()
 
     img = cv2.resize(cv2.imread(os.path.join(args.label_dir, os.listdir(args.label_dir)[0])), (1280, 720))
@@ -160,11 +195,12 @@ if __name__ == '__main__':
     print("PCA Feature Vectors: {}".format(np.shape(feature_vectors_nd)))
 
     # 4. Cluster Samples according to their nd HOG features
-    labels = cluster_samples(feature_vectors_nd, eps=0.1, min_samples=10, visualize=True)
+    # labels = cluster_samples(feature_vectors_nd, eps=0.1, min_samples=10, visualize=True)
+    labels = cluster_samples_HDBSCAN(feature_vectors_nd, min_samples=500)
     print("Sample Cluster Labels: {}".format(np.shape(labels)))
 
     # 5. Show Example Samples for each Cluster
-    show_cluster_examples(samples, labels, n=16)
+    show_cluster_examples(samples, labels, n=64)
 
     # 6. Generate 2d image-level labels for each image
     image_labels = get_image_labels(samples, labels, np.shape(img), sample_shape, one_hot_encoding=True)
@@ -176,3 +212,6 @@ if __name__ == '__main__':
         out_path = os.path.join(args.out, Path(image_paths[idx]).stem + '.out')
         with open(out_path, "wb") as f_out:
             pickle.dump(image_label, f_out)
+
+    # 8. Since the Original Cluster can't contain all samples, we need to assign the remaining samples a label after the fact.
+    # This Problem is discussed here: https://stackoverflow.com/questions/27822752/scikit-learn-predicting-new-points-with-dbscan
