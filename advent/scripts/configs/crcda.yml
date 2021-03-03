@@ -1,0 +1,21 @@
+# the hyper-parameters λent, λD, λcr and N are set as 2.5e−5, 2.5e−5, 5e−3 and 100, respectively.
+SOURCE: GTA
+TARGET: Cityscapes
+NUM_WORKERS: 4
+NUM_PATCH_CLUSTERS: 19
+NUM_MINI_PATCH_CLUSTERS: 19
+TRAIN:
+  SET_SOURCE: first500
+  DA_METHOD: CrCDA
+  MODEL: DeepLabv2
+  RESTORE_FROM: ../../pretrained_models/DeepLab_resnet_pretrained_imagenet.pth
+  MULTI_LEVEL: False
+  LAMBDA_SEG: 1.0
+  LAMBDA_C2: 0.005
+  LAMBDA_C3: 0.005
+  LAMBDA_ENT: 0.00005
+  LAMBDA_ENT2: 0.00005
+  LAMBDA_ENT3: 0.00005
+  LAMBDA_ADV: 0.00005
+TEST:
+  MODE: best

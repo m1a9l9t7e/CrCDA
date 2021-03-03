@@ -10,3 +10,9 @@ scikit-image~=0.18.1
 scikit-learn~=0.24.1
 tqdm~=4.57.0
 hdbscan~=0.8.27
+pyyaml
+tensorboardX
+easydict
+scipy
+future
+cffi

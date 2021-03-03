@@ -14,7 +14,6 @@ import multiprocessing as mp
 from util import stitch_images, print_red
 from sklearn import decomposition
 from pathlib import Path
-import pickle
 
 
 def extract_samples(image_path):
@@ -203,15 +202,13 @@ if __name__ == '__main__':
     show_cluster_examples(samples, labels, n=64)
 
     # 6. Generate 2d image-level labels for each image
-    image_labels = get_image_labels(samples, labels, np.shape(img), sample_shape, one_hot_encoding=True)
+    image_labels = get_image_labels(samples, labels, np.shape(img), sample_shape, one_hot_encoding=False)
     print("Image Labels: {}".format(np.shape(image_labels)))
 
-    # 7. Save labels with python pickle
+    # 7. Save labels as pngs
     os.makedirs(args.out, exist_ok=True)
     for idx, image_label in enumerate(image_labels):
-        out_path = os.path.join(args.out, Path(image_paths[idx]).stem + '.out')
-        with open(out_path, "wb") as f_out:
-            pickle.dump(image_label, f_out)
+        cv2.imwrite(os.path.join(args.out, Path(image_paths[idx]).stem + '.png'), image_label)
 
     # 8. Since the Original Cluster can't contain all samples, we need to assign the remaining samples a label after the fact.
     # This Problem is discussed here: https://stackoverflow.com/questions/27822752/scikit-learn-predicting-new-points-with-dbscan
