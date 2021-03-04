@@ -28,13 +28,8 @@ cfg.NUM_WORKERS = 4
 cfg.DATA_LIST_SOURCE = str(project_root / 'advent/dataset/gta5_list/{}.txt')
 cfg.DATA_LIST_TARGET = str(project_root / 'advent/dataset/cityscapes_list/{}.txt')
 # Directories
-# TODO: HARDCODE TIME BABY!!
-# cfg.DATA_DIRECTORY_SOURCE = str(project_root / 'data/GTA5')
-# cfg.DATA_DIRECTORY_TARGET = str(project_root / 'data/Cityscapes')
-cfg.DATA_DIRECTORY_SOURCE = '/home/malte/Downloads/GTA5'
-cfg.DATA_DIRECTORY_TARGET = '/home/malte/Downloads/Cityscapes'
-cfg.DATA_DIRECTORY_PATCH_LABELS = str(project_root / 'data/patch-level')
-cfg.DATA_DIRECTORY_MINI_PATCH_LABELS = str(project_root / 'data/mini-patch-level')
+cfg.DATA_DIRECTORY_SOURCE = str(project_root / 'data/GTA5')
+cfg.DATA_DIRECTORY_TARGET = str(project_root / 'data/Cityscapes')
 # Number of object classes
 cfg.NUM_CLASSES = 19
 # Exp dirs
@@ -52,11 +47,11 @@ cfg.TRAIN.SET_TARGET = 'train'
 cfg.TRAIN.BATCH_SIZE_SOURCE = 1
 cfg.TRAIN.BATCH_SIZE_TARGET = 1
 cfg.TRAIN.IGNORE_LABEL = 255
-# TODO: changed to run on smaller gpu
-# cfg.TRAIN.INPUT_SIZE_SOURCE = (1280, 720)
-# cfg.TRAIN.INPUT_SIZE_TARGET = (1024, 512)
-cfg.TRAIN.INPUT_SIZE_SOURCE = (640, 360)
-cfg.TRAIN.INPUT_SIZE_TARGET = (512, 256)
+cfg.TRAIN.INPUT_SIZE_SOURCE = (1280, 720)
+cfg.TRAIN.INPUT_SIZE_TARGET = (1024, 512)
+# Alternative sizes to run on smaller gpu
+# cfg.TRAIN.INPUT_SIZE_SOURCE = (640, 360)
+# cfg.TRAIN.INPUT_SIZE_TARGET = (512, 256)
 # cfg.TRAIN.INPUT_SIZE_SOURCE = (320, 180)
 # cfg.TRAIN.INPUT_SIZE_TARGET = (256, 128)
 # cfg.TRAIN.INPUT_SIZE_SOURCE = (160, 90)
