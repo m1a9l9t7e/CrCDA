@@ -65,9 +65,8 @@ def cluster_samples(features, eps=0.1, min_samples=10, visualize=False):
     # features = StandardScaler().fit_transform(features)  # needed?
 
     print_red("Finding clusters with DBSCAN:")
-    # db = DBSCAN(eps=eps, min_samples=min_samples).fit(features)
+    db = DBSCAN(eps=eps, min_samples=min_samples).fit(features)
     # db = DBSCAN(eps=eps, min_samples=min_samples, algorithm='ball_tree').fit(features)
-    db = DBSCAN(eps=eps, min_samples=min_samples, algorithm='ball_tree', metric='haversine').fit(features)
     core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
     core_samples_mask[db.core_sample_indices_] = True
     labels = db.labels_
@@ -81,6 +80,7 @@ def cluster_samples(features, eps=0.1, min_samples=10, visualize=False):
     print("Silhouette Coefficient: %0.3f" % metrics.silhouette_score(features, labels))
 
     if visualize:
+        visualize_clustering(features, labels)
         if np.shape(features)[1] > 2:
             features_2d = reduce_feature_dims(features, 2)
         else:
@@ -110,7 +110,7 @@ def cluster_samples(features, eps=0.1, min_samples=10, visualize=False):
     return labels
 
 
-def cluster_samples_HDBSCAN(features, min_samples=10):
+def cluster_samples_HDBSCAN(features, min_samples=10, visualize=False):
     """
     Clusters feature vectors using DBSCAN and show result of 2d transformation
     """
@@ -126,7 +126,54 @@ def cluster_samples_HDBSCAN(features, min_samples=10):
     print('Estimated number of clusters: %d' % n_clusters_)
     print('Estimated number of noise points: %d' % n_noise_)
 
+    if visualize:
+        visualize_clustering(features, labels)
+
     return labels
+
+
+def visualize_clustering(features, labels):
+    if np.shape(features)[1] > 2:
+        features_2d = reduce_feature_dims(features, 2)
+    else:
+        features_2d = features
+
+    classes = list()
+    num_elements = list()
+    bar_colors = list()
+    # Black removed and is used for noise instead.
+    unique_labels = sorted(set(labels))
+    colors = [plt.cm.Spectral(each) for each in np.linspace(0, 1, len(unique_labels))]
+    # colors = [plt.cm.jet(each) for each in np.linspace(0, 1, len(unique_labels))]
+    for k, col in zip(unique_labels, colors):
+        class_member_mask = (labels == k)
+        xy = features_2d[class_member_mask]
+
+        if k == -1:
+            # Black used for noise.
+            col = [0, 0, 0, 1]
+            plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
+                     markeredgecolor='k', markersize=2)
+            classes.append('     Noise')
+
+        else:
+            plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=tuple(col),
+                     markeredgecolor='k', markersize=8)
+            classes.append(str(k))
+
+        num_elements.append(int(class_member_mask.sum()))
+        bar_colors.append(col)
+
+    plt.title('Number of clusters: %d' % len(unique_labels))
+    plt.show()
+
+    # Move Noise Class to last
+    classes.append(classes.pop(0))
+    num_elements.append(num_elements.pop(0))
+    bar_colors.append(bar_colors.pop(0))
+    plt.title('Cluster distribution')
+    plt.bar(classes, num_elements, color=bar_colors)
+    plt.show()
 
 
 def show_cluster_examples(samples, labels, n=64):
@@ -153,7 +200,8 @@ def get_image_labels(samples, labels, image_shape, sample_shape, one_hot_encodin
     h = int(image_shape[0] / sample_shape[0])
 
     if show_segmented:
-        cv2.imshow('win', stitch_images(list(samples[:h*w]), h, w))
+        segmented_img = stitch_images(list(samples[:h*w]), h, w)
+        cv2.imshow('win', segmented_img)
         cv2.waitKey(0)
 
     labels = labels + 1  # Needed as currently there is a -1 class for Noise
@@ -202,7 +250,7 @@ if __name__ == '__main__':
     show_cluster_examples(samples, labels, n=64)
 
     # 6. Generate 2d image-level labels for each image
-    image_labels = get_image_labels(samples, labels, np.shape(img), sample_shape, one_hot_encoding=False)
+    image_labels = get_image_labels(samples, labels, np.shape(img), sample_shape, one_hot_encoding=False, show_segmented=False)
     print("Image Labels: {}".format(np.shape(image_labels)))
 
     # 7. Save labels as pngs

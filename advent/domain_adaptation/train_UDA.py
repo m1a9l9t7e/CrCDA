@@ -28,7 +28,7 @@ from advent.utils.loss import entropy_loss
 from advent.utils.func import prob_2_entropy
 from advent.utils.viz_segmask import colorize_mask
 
-from apex import amp
+# from apex import amp
 
 
 def train_advent(model, trainloader, targetloader, cfg):

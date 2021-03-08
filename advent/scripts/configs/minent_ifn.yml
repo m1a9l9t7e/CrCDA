@@ -7,9 +7,9 @@ DATA_LIST_SOURCE: /beegfs/work/schoebel/dataset/gta5_list/{}.txt
 DATA_LIST_TARGET: /beegfs/work/schoebel/dataset/cityscapes_list/{}.txt
 NUM_WORKERS: 4
 TRAIN:
-  TRAIN.SET_SOURCE: train
-  TRAIN.SET_TARGET: train
-  TRAIN.INFO_TARGET: /beegfs/work/schoebel/dataset/cityscapes_list/info.json
+  SET_SOURCE: train
+  SET_TARGET: train
+  INFO_TARGET: /beegfs/work/schoebel/dataset/cityscapes_list/info.json
   DA_METHOD: MinEnt
   MODEL: DeepLabv2
   RESTORE_FROM: /beegfs/work/shared/00_init_weights/pytorch_resnet101-fe_imagenet.pth
