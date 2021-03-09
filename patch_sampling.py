@@ -6,7 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 from skimage.feature import hog
 from sklearn.decomposition import PCA
-from sklearn.cluster import DBSCAN
+from sklearn.cluster import DBSCAN, KMeans
 import hdbscan
 from sklearn import metrics
 from tqdm import tqdm
@@ -58,7 +58,7 @@ def reduce_feature_dims_SVD(features, n):
     return reduced
 
 
-def cluster_samples(features, eps=0.1, min_samples=10, visualize=False):
+def cluster_samples_DBSCAN(features, eps=0.3, min_samples=10, visualize=False):
     """
     Clusters feature vectors using DBSCAN and show result of 2d transformation
     """
@@ -132,7 +132,25 @@ def cluster_samples_HDBSCAN(features, min_samples=10, visualize=False):
     return labels
 
 
-def visualize_clustering(features, labels):
+def cluster_samples_KMEANS(features, num_clusters=10, visualize=False):
+    """
+    Clusters feature vectors using DBSCAN and show result of 2d transformation
+    """
+    # features = StandardScaler().fit_transform(features)  # needed?
+    print_red("Finding clusters with K-MEANS:")
+
+    kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(features)
+    labels = kmeans.labels_
+
+    print('Fixed number of clusters (k-means): %d' % num_clusters)
+
+    if visualize:
+        visualize_clustering(features, labels, noise=False)
+
+    return labels
+
+
+def visualize_clustering(features, labels, noise=True):
     if np.shape(features)[1] > 2:
         features_2d = reduce_feature_dims(features, 2)
     else:
@@ -167,10 +185,12 @@ def visualize_clustering(features, labels):
     plt.title('Number of clusters: %d' % len(unique_labels))
     plt.show()
 
-    # Move Noise Class to last
-    classes.append(classes.pop(0))
-    num_elements.append(num_elements.pop(0))
-    bar_colors.append(bar_colors.pop(0))
+    if noise:
+        # Move Noise Class to last
+        classes.append(classes.pop(0))
+        num_elements.append(num_elements.pop(0))
+        bar_colors.append(bar_colors.pop(0))
+
     plt.title('Cluster distribution')
     plt.bar(classes, num_elements, color=bar_colors)
     plt.show()
@@ -242,8 +262,9 @@ if __name__ == '__main__':
     print("PCA Feature Vectors: {}".format(np.shape(feature_vectors_nd)))
 
     # 4. Cluster Samples according to their nd HOG features
-    # labels = cluster_samples(feature_vectors_nd, eps=0.1, min_samples=10, visualize=True)
-    labels = cluster_samples_HDBSCAN(feature_vectors_nd, min_samples=500)
+    # labels = cluster_samples(feature_vectors_nd, eps=1.0, min_samples=10, visualize=True)
+    labels = cluster_samples_HDBSCAN(feature_vectors_nd, min_samples=500, visualize=True)
+    # labels = cluster_samples_KMEANS(feature_vectors_nd, num_clusters=10, visualize=True)
     print("Sample Cluster Labels: {}".format(np.shape(labels)))
 
     # 5. Show Example Samples for each Cluster
