@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
@@ -14,6 +15,7 @@ import multiprocessing as mp
 from util import stitch_images, print_red
 from sklearn import decomposition
 from pathlib import Path
+from random import shuffle
 
 
 def extract_samples(image_path):
@@ -107,7 +109,7 @@ def cluster_samples_DBSCAN(features, eps=0.3, min_samples=10, visualize=False):
         plt.title('Estimated number of clusters: %d' % n_clusters_)
         plt.show()
 
-    return labels
+    return labels, db
 
 
 def cluster_samples_HDBSCAN(features, min_samples=10, visualize=False):
@@ -129,7 +131,7 @@ def cluster_samples_HDBSCAN(features, min_samples=10, visualize=False):
     if visualize:
         visualize_clustering(features, labels)
 
-    return labels
+    return labels, clusterer
 
 
 def cluster_samples_KMEANS(features, num_clusters=10, visualize=False):
@@ -141,13 +143,14 @@ def cluster_samples_KMEANS(features, num_clusters=10, visualize=False):
 
     kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(features)
     labels = kmeans.labels_
+    labels = kmeans.predict(features)
 
     print('Fixed number of clusters (k-means): %d' % num_clusters)
 
     if visualize:
         visualize_clustering(features, labels, noise=False)
 
-    return labels
+    return labels, kmeans
 
 
 def visualize_clustering(features, labels, noise=True):
@@ -234,19 +237,24 @@ def get_image_labels(samples, labels, image_shape, sample_shape, one_hot_encodin
         return np.reshape(labels, [-1, h, w])
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Image Sampler")
-    parser.add_argument("--label_dir", type=str, default='./data/gta5_labels', help="Path to ground truth to extract samples from")
-    parser.add_argument("--out", type=str, default="./output", help="Path to output folder")
-    parser.add_argument("--max_images", type=int, default=500, help="Maximum Number of Images to use")
-    args = parser.parse_args()
+def get_image_paths(label_dir, label_list, random=False):
+    paths = [os.path.join(label_dir, image_name.strip()) for image_name in open(label_list, 'r').readlines()]
+    if random:
+        shuffle(paths)
+    else:
+        paths = sorted(paths)
 
-    img = cv2.resize(cv2.imread(os.path.join(args.label_dir, os.listdir(args.label_dir)[0])), (1280, 720))
-    # sample_shape = [18, 32, img.shape[2]]  # first size
-    sample_shape = [36, 64, img.shape[2]]  # second size
+    return paths
 
+
+def fit_remaining(label_dir, label_list, already_sampled, batch_size=1000):
+    paths = [os.path.join(label_dir, image_name.strip()) for image_name in open(label_list, 'r').readlines()]
+    paths.remove(already_sampled)
+
+
+def main(image_paths, trained_model=None, one_hot_encoding=False, visualize=False):
+    print(image_paths)
     # 1. Extract Samples from Ground Truth Images
-    image_paths = sorted([os.path.join(args.label_dir, image_name) for image_name in os.listdir(args.label_dir)])[:args.max_images]
     pool = mp.Pool(mp.cpu_count())
     result = pool.map(extract_samples, tqdm(image_paths, desc='Extract samples'))
     samples = np.reshape(result, [-1] + sample_shape)
@@ -262,22 +270,50 @@ if __name__ == '__main__':
     print("PCA Feature Vectors: {}".format(np.shape(feature_vectors_nd)))
 
     # 4. Cluster Samples according to their nd HOG features
-    # labels = cluster_samples(feature_vectors_nd, eps=1.0, min_samples=10, visualize=True)
-    labels = cluster_samples_HDBSCAN(feature_vectors_nd, min_samples=500, visualize=True)
-    # labels = cluster_samples_KMEANS(feature_vectors_nd, num_clusters=10, visualize=True)
+    if trained_model is None:
+        # labels, _ = cluster_samples_DBSCAN(feature_vectors_nd, eps=1.0, min_samples=10, visualize=visualize)
+        # labels, _ = cluster_samples_HDBSCAN(feature_vectors_nd, min_samples=500, visualize=visualize)
+        labels, model = cluster_samples_KMEANS(feature_vectors_nd, num_clusters=10, visualize=visualize)
+    else:
+        labels = trained_model.predict(feature_vectors_nd)
     print("Sample Cluster Labels: {}".format(np.shape(labels)))
 
     # 5. Show Example Samples for each Cluster
-    show_cluster_examples(samples, labels, n=64)
+    if visualize:
+        show_cluster_examples(samples, labels, n=64)
 
     # 6. Generate 2d image-level labels for each image
-    image_labels = get_image_labels(samples, labels, np.shape(img), sample_shape, one_hot_encoding=False, show_segmented=False)
+    image_labels = get_image_labels(samples, labels, np.shape(img), sample_shape, one_hot_encoding=one_hot_encoding, show_segmented=visualize)
     print("Image Labels: {}".format(np.shape(image_labels)))
 
-    # 7. Save labels as pngs
+    return image_labels, trained_model
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Image Sampler")
+    parser.add_argument("--label_dir", type=str, default='/home/malte/Downloads/GTA5/labels', help="Path to ground truth to extract samples from")
+    parser.add_argument("--label_list", type=str, default='./advent/dataset/gta5_list/train.txt', help="Path to ground truth to extract samples from")
+    parser.add_argument("--out", type=str, default="./output-kmeans", help="Path to output folder")
+    parser.add_argument("--max_images", type=int, default=1000, help="Maximum Number of Images to use")
+    args = parser.parse_args()
+
+    img = cv2.resize(cv2.imread(os.path.join(args.label_dir, os.listdir(args.label_dir)[0])), (1280, 720))
+    # sample_shape = [18, 32, img.shape[2]]  # first size
+    sample_shape = [36, 64, img.shape[2]]  # second size
+
+    # fit model on args.max_images random samples
+    image_paths = get_image_paths(args.label_dir, args.label_list, random=True)[:args.max_images]
+    _, model = main(image_paths)
+
+    # Get labels for all images using fitted model
     os.makedirs(args.out, exist_ok=True)
-    for idx, image_label in enumerate(image_labels):
-        cv2.imwrite(os.path.join(args.out, Path(image_paths[idx]).stem + '.png'), image_label)
+    all_image_paths = get_image_paths(args.label_dir, args.label_list, random=False)
+    for i in range(math.ceil(len(all_image_paths) / args.max_images)):
+        image_paths = all_image_paths[args.max_images * i:args.max_images * (i+1)]
+        image_labels, _ = main(image_paths, trained_model=model)
+        # Save labels as pngs
+        for idx, image_label in enumerate(image_labels):
+            cv2.imwrite(os.path.join(args.out, Path(image_paths[idx]).stem + '.png'), image_label)
 
     # 8. Since the Original Cluster can't contain all samples, we need to assign the remaining samples a label after the fact.
     # This Problem is discussed here: https://stackoverflow.com/questions/27822752/scikit-learn-predicting-new-points-with-dbscan

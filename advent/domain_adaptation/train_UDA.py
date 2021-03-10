@@ -245,17 +245,6 @@ def train_minent(model, trainloader, targetloader, cfg):
                           momentum=cfg.TRAIN.MOMENTUM,
                           weight_decay=cfg.TRAIN.WEIGHT_DECAY)
 
-    if cfg.amp:
-        # Initialize Amp.
-        if cfg.channels_last:
-            memory_format = torch.channels_last
-        else:
-            memory_format = torch.contiguous_format
-
-        model = model.cuda().to(memory_format=memory_format)
-
-        model, optimizer = amp.initialize(model, optimizer, opt_level=cfg.opt_level)
-
     # interpolate output segmaps
     interp = nn.Upsample(size=(input_size_source[1], input_size_source[0]), mode='bilinear',
                          align_corners=True)
@@ -287,11 +276,7 @@ def train_minent(model, trainloader, targetloader, cfg):
         loss = (cfg.TRAIN.LAMBDA_SEG_MAIN * loss_seg_src_main
                 + cfg.TRAIN.LAMBDA_SEG_AUX * loss_seg_src_aux)
 
-        if cfg.amp:
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward()
-        else:
-            loss.backward()
+        loss.backward()
 
         # adversarial training with minent
         _, batch = targetloader_iter.__next__()
@@ -307,11 +292,8 @@ def train_minent(model, trainloader, targetloader, cfg):
         loss = (cfg.TRAIN.LAMBDA_ENT_AUX * loss_target_entp_aux
                 + cfg.TRAIN.LAMBDA_ENT_MAIN * loss_target_entp_main)
 
-        if cfg.amp:
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward()
-        else:
-            loss.backward()
+
+        loss.backward()
 
         optimizer.step()
 
