@@ -12,7 +12,7 @@ TRAIN:
   INFO_TARGET: /beegfs/work/schoebel/dataset/cityscapes_list/info.json
   DA_METHOD: MinEnt
   MODEL: DeepLabv2
-  RESTORE_FROM: /beegfs/work/shared/00_init_weights/pytorch_resnet101-fe_imagenet.pth
+  RESTORE_FROM: /beegfs/work/schoebel/.pretrained/DeepLab_resnet_pretrained_imagenet.pth
   MULTI_LEVEL: True
   LAMBDA_ENT_MAIN: 0.001
   LAMBDA_ENT_AUX: 0.0002

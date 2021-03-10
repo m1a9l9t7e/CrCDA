@@ -10,7 +10,7 @@ TRAIN:
   SET_SOURCE: train
   SET_TARGET: train
   INFO_TARGET: /beegfs/work/schoebel/dataset/cityscapes_list/info.json
-  RESTORE_FROM: /beegfs/work/shared/00_init_weights/pytorch_resnet101-fe_imagenet.pth
+  RESTORE_FROM: /beegfs/work/schoebel/.pretrained/DeepLab_resnet_pretrained_imagenet.pth
   DA_METHOD: CrCDA
   MODEL: DeepLabv2
   MULTI_LEVEL: False
