@@ -37,7 +37,7 @@ cfg.EXP_NAME = ''
 cfg.EXP_ROOT = project_root / 'experiments'
 cfg.EXP_ROOT_SNAPSHOT = osp.join(cfg.EXP_ROOT, 'snapshots')
 cfg.EXP_ROOT_LOGS = osp.join(cfg.EXP_ROOT, 'logs')
-cfg.EXP_ROOT_LOGS = osp.join(cfg.EXP_ROOT, 'eval')
+cfg.EXP_ROOT_EVAL = osp.join(cfg.EXP_ROOT, 'eval')
 # CUDA
 cfg.GPU_ID = 0
 

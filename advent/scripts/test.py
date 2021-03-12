@@ -24,6 +24,7 @@ from advent.domain_adaptation.eval_UDA import evaluate_domain_adaptation
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore")
 
+
 def get_arguments():
     """
     Parse input arguments
