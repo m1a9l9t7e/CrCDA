@@ -4,7 +4,7 @@ from advent.dataset.base_dataset import BaseDataset
 
 
 class GTA5DataSet(BaseDataset):
-    def __init__(self, root, list_path, set='all',
+    def __init__(self, root, list_path, set,
                  max_iters=None, crop_size=(321, 321), mean=(128, 128, 128)):
         super().__init__(root, list_path, set, max_iters, crop_size, None, mean)
 

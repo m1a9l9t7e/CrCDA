@@ -37,6 +37,7 @@ cfg.EXP_NAME = ''
 cfg.EXP_ROOT = project_root / 'experiments'
 cfg.EXP_ROOT_SNAPSHOT = osp.join(cfg.EXP_ROOT, 'snapshots')
 cfg.EXP_ROOT_LOGS = osp.join(cfg.EXP_ROOT, 'logs')
+cfg.EXP_ROOT_LOGS = osp.join(cfg.EXP_ROOT, 'eval')
 # CUDA
 cfg.GPU_ID = 0
 
@@ -115,6 +116,12 @@ cfg.TEST.SET_TARGET = 'val'
 cfg.TEST.BATCH_SIZE_TARGET = 1
 cfg.TEST.INPUT_SIZE_TARGET = (512, 256)
 cfg.TEST.OUTPUT_SIZE_TARGET = (512, 256)
+
+cfg.TEST.SET_SOURCE = 'val'
+cfg.TEST.BATCH_SIZE_SOURCE = 1
+cfg.TEST.INPUT_SIZE_SOURCE = (640, 360)
+cfg.TEST.OUTPUT_SIZE_SOURCE = (640, 360)
+
 cfg.TEST.INFO_TARGET = str(project_root / 'advent/dataset/cityscapes_list/info.json')
 cfg.TEST.WAIT_MODEL = True
 

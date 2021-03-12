@@ -10,16 +10,19 @@ import os.path as osp
 import pprint
 import warnings
 
+from torch import nn
 from torch.utils import data
+from tensorboardX import SummaryWriter
 
+from advent.dataset.gta5 import GTA5DataSet
 from advent.model.deeplabv2 import get_deeplab_v2
 from advent.dataset.cityscapes import CityscapesDataSet
 from advent.domain_adaptation.config import cfg, cfg_from_file
 from advent.domain_adaptation.eval_UDA import evaluate_domain_adaptation
 
+
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore")
-
 
 def get_arguments():
     """
@@ -33,7 +36,7 @@ def get_arguments():
     return parser.parse_args()
 
 
-def main(config_file, exp_suffix):
+def main(config_file, exp_suffix, fixed_test_size=True):
     # LOAD ARGS
     assert config_file is not None, 'Missing cfg file'
     cfg_from_file(config_file)
@@ -46,6 +49,11 @@ def main(config_file, exp_suffix):
     if cfg.TEST.SNAPSHOT_DIR[0] == '':
         cfg.TEST.SNAPSHOT_DIR[0] = osp.join(cfg.EXP_ROOT_SNAPSHOT, cfg.EXP_NAME)
         os.makedirs(cfg.TEST.SNAPSHOT_DIR[0], exist_ok=True)
+
+    # init tensorboard writer
+    log_path = osp.join(cfg.EXP_ROOT_EVAL, cfg.EXP_NAME)
+    writer = SummaryWriter(log_path)
+    writer.add_text("Info", str(cfg))
 
     print('Using config:')
     pprint.pprint(cfg)
@@ -65,21 +73,47 @@ def main(config_file, exp_suffix):
     if os.environ.get('ADVENT_DRY_RUN', '0') == '1':
         return
 
-    # dataloaders
-    test_dataset = CityscapesDataSet(root=cfg.DATA_DIRECTORY_TARGET,
-                                     list_path=cfg.DATA_LIST_TARGET,
-                                     set=cfg.TEST.SET_TARGET,
-                                     info_path=cfg.TEST.INFO_TARGET,
-                                     crop_size=cfg.TEST.INPUT_SIZE_TARGET,
-                                     mean=cfg.TEST.IMG_MEAN,
-                                     labels_size=cfg.TEST.OUTPUT_SIZE_TARGET)
-    test_loader = data.DataLoader(test_dataset,
-                                  batch_size=cfg.TEST.BATCH_SIZE_TARGET,
-                                  num_workers=cfg.NUM_WORKERS,
-                                  shuffle=False,
-                                  pin_memory=True)
-    # eval
-    evaluate_domain_adaptation(models, test_loader, cfg)
+    # dataloader source
+    test_dataset_source = GTA5DataSet(root=cfg.DATA_DIRECTORY_SOURCE,
+                                      list_path=cfg.DATA_LIST_SOURCE,
+                                      set=cfg.TEST.SET_SOURCE,
+                                      crop_size=cfg.TEST.INPUT_SIZE_SOURCE,
+                                      mean=cfg.TEST.IMG_MEAN)
+    test_loader_source = data.DataLoader(test_dataset_source,
+                                         batch_size=cfg.TEST.BATCH_SIZE_SOURCE,
+                                         num_workers=cfg.NUM_WORKERS,
+                                         shuffle=False,
+                                         pin_memory=True)
+
+    # eval source
+    interp_source = None
+    if fixed_test_size:
+        interp_source = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_SOURCE[1], cfg.TEST.OUTPUT_SIZE_SOURCE[0]), mode='bilinear', align_corners=True)
+
+    print("<==:MODE_CHANGE:SOURCE_EVAL:==>")
+    evaluate_domain_adaptation(models, test_loader_source, cfg, descriptor='mIoU_source', interp=interp_source)
+
+    # dataloader target
+    test_dataset_target = CityscapesDataSet(root=cfg.DATA_DIRECTORY_TARGET,
+                                            list_path=cfg.DATA_LIST_TARGET,
+                                            set=cfg.TEST.SET_TARGET,
+                                            info_path=cfg.TEST.INFO_TARGET,
+                                            crop_size=cfg.TEST.INPUT_SIZE_TARGET,
+                                            mean=cfg.TEST.IMG_MEAN,
+                                            labels_size=cfg.TEST.OUTPUT_SIZE_TARGET)
+    test_loader_target = data.DataLoader(test_dataset_target,
+                                         batch_size=cfg.TEST.BATCH_SIZE_TARGET,
+                                         num_workers=cfg.NUM_WORKERS,
+                                         shuffle=False,
+                                         pin_memory=True)
+
+    # eval target
+    interp_target = None
+    if fixed_test_size:
+        interp_target = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_TARGET[1], cfg.TEST.OUTPUT_SIZE_TARGET[0]), mode='bilinear', align_corners=True)
+
+    print("<==:MODE_CHANGE:TARGET_EVAL:==>")
+    evaluate_domain_adaptation(models, test_loader_target, cfg, descriptor='mIoU_target', interp=interp_target)
 
 
 if __name__ == '__main__':

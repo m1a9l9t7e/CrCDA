@@ -17,22 +17,18 @@ from advent.utils.func import per_class_iu, fast_hist
 from advent.utils.serialization import pickle_dump, pickle_load
 
 
-def evaluate_domain_adaptation( models, test_loader, cfg,
-                                fixed_test_size=True,
-                                verbose=True):
+def evaluate_domain_adaptation(models, test_loader, cfg, descriptor='mIoU_target',
+                               interp=None, verbose=True):
     device = cfg.GPU_ID
-    interp = None
-    if fixed_test_size:
-        interp = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_TARGET[1], cfg.TEST.OUTPUT_SIZE_TARGET[0]), mode='bilinear', align_corners=True)
     # eval
     if cfg.TEST.MODE == 'single':
         eval_single(cfg, models,
-                    device, test_loader, interp, fixed_test_size,
+                    device, test_loader, interp, (interp is not None),
                     verbose)
     elif cfg.TEST.MODE == 'best':
         eval_best(cfg, models,
-                  device, test_loader, interp, fixed_test_size,
-                  verbose)
+                  device, test_loader, interp, (interp is not None),
+                  verbose, descriptor=descriptor)
     else:
         raise NotImplementedError(f"Not yet supported test mode {cfg.TEST.MODE}")
 
@@ -71,7 +67,7 @@ def eval_single(cfg, models,
 
 def eval_best(cfg, models,
               device, test_loader, interp,
-              fixed_test_size, verbose):
+              fixed_test_size, verbose, descriptor, tensorboard_writer=None):
     assert len(models) == 1, 'Not yet supported multi models in this mode'
     assert osp.exists(cfg.TEST.SNAPSHOT_DIR[0]), 'SNAPSHOT_DIR is not found'
     start_iter = cfg.TEST.SNAPSHOT_STEP
@@ -123,12 +119,17 @@ def eval_best(cfg, models,
         if cur_best_miou < computed_miou:
             cur_best_miou = computed_miou
             cur_best_model = restore_from
-        print('\tCurrent mIoU:', computed_miou)
-        print('\tCurrent best model:', cur_best_model)
-        print('\tCurrent best mIoU:', cur_best_miou)
+
+        # print('\tCurrent mIoU:', computed_miou)
+        print(f'==> {descriptor} = {computed_miou}')
+
+        if tensorboard_writer is not None:
+            tensorboard_writer.add_scalar(descriptor, computed_miou, i_iter)
         if verbose:
             display_stats(cfg, test_loader.dataset.class_names, inters_over_union_classes)
 
+    # print('\tBest model:', cur_best_model)
+    # print('\tBest mIoU:', cur_best_miou)
 
 def load_checkpoint_for_evaluation(model, checkpoint, device):
     saved_state_dict = torch.load(checkpoint)

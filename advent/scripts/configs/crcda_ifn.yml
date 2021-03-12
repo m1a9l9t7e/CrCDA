@@ -2,7 +2,7 @@ SOURCE: GTA
 TARGET: Cityscapes
 DATA_DIRECTORY_SOURCE: /beegfs/work/schoebel/dataset/gta5
 DATA_DIRECTORY_TARGET: /beegfs/work/shared/cityscapes
-EXP_ROOT: /beegfs/work/schoebel/CrCDA
+EXP_ROOT: /beegfs/work/schoebel/AdvEnt
 DATA_LIST_SOURCE: /beegfs/work/schoebel/dataset/gta5_list/{}.txt
 DATA_LIST_TARGET: /beegfs/work/schoebel/dataset/cityscapes_list/{}.txt
 NUM_WORKERS: 4
