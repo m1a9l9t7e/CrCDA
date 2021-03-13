@@ -34,10 +34,10 @@ cfg.DATA_DIRECTORY_TARGET = str(project_root / 'data/Cityscapes')
 cfg.NUM_CLASSES = 19
 # Exp dirs
 cfg.EXP_NAME = ''
-cfg.EXP_ROOT = project_root / 'experiments'
-cfg.EXP_ROOT_SNAPSHOT = osp.join(cfg.EXP_ROOT, 'snapshots')
-cfg.EXP_ROOT_LOGS = osp.join(cfg.EXP_ROOT, 'logs')
-cfg.EXP_ROOT_EVAL = osp.join(cfg.EXP_ROOT, 'eval')
+cfg.EXP_ROOT = str(project_root / 'experiments')
+cfg.EXP_ROOT_SNAPSHOT = str(osp.join(cfg.EXP_ROOT, 'snapshots'))
+cfg.EXP_ROOT_LOGS = str(osp.join(cfg.EXP_ROOT, 'logs'))
+cfg.EXP_ROOT_EVAL = str(osp.join(cfg.EXP_ROOT, 'eval'))
 # CUDA
 cfg.GPU_ID = 0
 
