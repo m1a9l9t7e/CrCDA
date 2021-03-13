@@ -131,6 +131,7 @@ def eval_best(cfg, models,
     # print('\tBest model:', cur_best_model)
     # print('\tBest mIoU:', cur_best_miou)
 
+
 def load_checkpoint_for_evaluation(model, checkpoint, device):
     saved_state_dict = torch.load(checkpoint)
     model.load_state_dict(saved_state_dict)

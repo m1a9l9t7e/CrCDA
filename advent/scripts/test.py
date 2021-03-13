@@ -34,6 +34,8 @@ def get_arguments():
                         help='optional config file', )
     parser.add_argument("--exp-suffix", type=str, default=None,
                         help="optional experiment suffix")
+    parser.add_argument("--source", action='store_true', default=False,
+                        help="whether to test on source domain val set")
     return parser.parse_args()
 
 
@@ -76,25 +78,26 @@ def main(config_file, exp_suffix, fixed_test_size=True):
     if os.environ.get('ADVENT_DRY_RUN', '0') == '1':
         return
 
-    # dataloader source
-    test_dataset_source = GTA5DataSet(root=cfg.DATA_DIRECTORY_SOURCE,
-                                      list_path=cfg.DATA_LIST_SOURCE,
-                                      set=cfg.TEST.SET_SOURCE,
-                                      crop_size=cfg.TEST.INPUT_SIZE_SOURCE,
-                                      mean=cfg.TEST.IMG_MEAN)
-    test_loader_source = data.DataLoader(test_dataset_source,
-                                         batch_size=cfg.TEST.BATCH_SIZE_SOURCE,
-                                         num_workers=cfg.NUM_WORKERS,
-                                         shuffle=False,
-                                         pin_memory=True)
+    if args.source:
+        # dataloader source
+        test_dataset_source = GTA5DataSet(root=cfg.DATA_DIRECTORY_SOURCE,
+                                          list_path=cfg.DATA_LIST_SOURCE,
+                                          set=cfg.TEST.SET_SOURCE,
+                                          crop_size=cfg.TEST.INPUT_SIZE_SOURCE,
+                                          mean=cfg.TEST.IMG_MEAN)
+        test_loader_source = data.DataLoader(test_dataset_source,
+                                             batch_size=cfg.TEST.BATCH_SIZE_SOURCE,
+                                             num_workers=cfg.NUM_WORKERS,
+                                             shuffle=False,
+                                             pin_memory=True)
 
-    # eval source
-    interp_source = None
-    if fixed_test_size:
-        interp_source = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_SOURCE[1], cfg.TEST.OUTPUT_SIZE_SOURCE[0]), mode='bilinear', align_corners=True)
+        # eval source
+        interp_source = None
+        if fixed_test_size:
+            interp_source = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_SOURCE[1], cfg.TEST.OUTPUT_SIZE_SOURCE[0]), mode='bilinear', align_corners=True)
 
-    print("<==:MODE_CHANGE:SOURCE_EVAL:==>")
-    evaluate_domain_adaptation(models, test_loader_source, cfg, descriptor='mIoU_source', interp=interp_source, tensorboard_writer=writer, verbose=False)
+        print("<==:MODE_CHANGE:SOURCE_EVAL:==>")
+        evaluate_domain_adaptation(models, test_loader_source, cfg, descriptor='mIoU_source', interp=interp_source, tensorboard_writer=writer, verbose=False)
 
     # dataloader target
     test_dataset_target = CityscapesDataSet(root=cfg.DATA_DIRECTORY_TARGET,
