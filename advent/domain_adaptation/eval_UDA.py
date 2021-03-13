@@ -18,7 +18,7 @@ from advent.utils.serialization import pickle_dump, pickle_load
 
 
 def evaluate_domain_adaptation(models, test_loader, cfg, descriptor='mIoU_target',
-                               interp=None, verbose=True):
+                               interp=None, verbose=True, tensorboard_writer=None):
     device = cfg.GPU_ID
     # eval
     if cfg.TEST.MODE == 'single':
@@ -28,7 +28,7 @@ def evaluate_domain_adaptation(models, test_loader, cfg, descriptor='mIoU_target
     elif cfg.TEST.MODE == 'best':
         eval_best(cfg, models,
                   device, test_loader, interp, (interp is not None),
-                  verbose, descriptor=descriptor)
+                  verbose, descriptor=descriptor, tensorboard_writer=tensorboard_writer)
     else:
         raise NotImplementedError(f"Not yet supported test mode {cfg.TEST.MODE}")
 

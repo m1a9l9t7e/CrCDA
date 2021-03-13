@@ -5,14 +5,17 @@ DATA_DIRECTORY_TARGET: /beegfs/work/shared/cityscapes
 EXP_ROOT: /beegfs/work/schoebel/AdvEnt
 DATA_LIST_SOURCE: /beegfs/work/schoebel/dataset/gta5_list/{}.txt
 DATA_LIST_TARGET: /beegfs/work/schoebel/dataset/cityscapes_list/{}.txt
+EXP_ROOT_SNAPSHOT: /beegfs/work/schoebel/AdvEnt/snapshots
+EXP_ROOT_LOGS: /beegfs/work/schoebel/AdvEnt/logs
+EXP_ROOT_EVAL: /beegfs/work/schoebel/AdvEnt/eval
 NUM_WORKERS: 4
 TRAIN:
   SET_SOURCE: train
   SET_TARGET: train
   INFO_TARGET: /beegfs/work/schoebel/dataset/cityscapes_list/info.json
+  MODEL: DeepLabv2
   RESTORE_FROM: /beegfs/work/schoebel/.pretrained/DeepLab_resnet_pretrained_imagenet.pth
   DA_METHOD: CrCDA
-  MODEL: DeepLabv2
   MULTI_LEVEL: False
   LAMBDA_SEG: 1.0
   LAMBDA_C2: 0.005
@@ -23,3 +26,4 @@ TRAIN:
   LAMBDA_ADV: 0.00005
 TEST:
   MODE: best
+  INFO_TARGET: /beegfs/work/schoebel/dataset/cityscapes_list/info.json

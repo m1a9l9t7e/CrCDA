@@ -56,6 +56,8 @@ def main(config_file, exp_suffix, fixed_test_size=True):
     writer = SummaryWriter(log_path)
     writer.add_text("Info", str(cfg))
 
+    print("Evaluating experiment {}, with weight as {}".format(cfg.EXP_NAME, cfg.TEST.SNAPSHOT_DIR))
+    print("Writing tensorboard results to {}".format(log_path))
     print('Using config:')
     pprint.pprint(cfg)
     # load models
@@ -92,7 +94,7 @@ def main(config_file, exp_suffix, fixed_test_size=True):
         interp_source = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_SOURCE[1], cfg.TEST.OUTPUT_SIZE_SOURCE[0]), mode='bilinear', align_corners=True)
 
     print("<==:MODE_CHANGE:SOURCE_EVAL:==>")
-    evaluate_domain_adaptation(models, test_loader_source, cfg, descriptor='mIoU_source', interp=interp_source)
+    evaluate_domain_adaptation(models, test_loader_source, cfg, descriptor='mIoU_source', interp=interp_source, tensorboard_writer=writer)
 
     # dataloader target
     test_dataset_target = CityscapesDataSet(root=cfg.DATA_DIRECTORY_TARGET,
@@ -114,7 +116,7 @@ def main(config_file, exp_suffix, fixed_test_size=True):
         interp_target = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_TARGET[1], cfg.TEST.OUTPUT_SIZE_TARGET[0]), mode='bilinear', align_corners=True)
 
     print("<==:MODE_CHANGE:TARGET_EVAL:==>")
-    evaluate_domain_adaptation(models, test_loader_target, cfg, descriptor='mIoU_target', interp=interp_target)
+    evaluate_domain_adaptation(models, test_loader_target, cfg, descriptor='mIoU_target', interp=interp_target, tensorboard_writer=writer)
 
 
 if __name__ == '__main__':

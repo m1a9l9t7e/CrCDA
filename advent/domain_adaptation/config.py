@@ -59,7 +59,7 @@ cfg.TRAIN.INPUT_SIZE_TARGET = (1024, 512)
 # cfg.TRAIN.INPUT_SIZE_TARGET = (128, 64)
 # Class info
 cfg.TRAIN.INFO_SOURCE = ''
-cfg.TRAIN.INFO_TARGET = str(project_root / 'advent/dataset/cityscapes_list/info.json')
+cfg.TRAIN.INFO_TARGET = ""  # str(project_root / 'advent/dataset/cityscapes_list/info.json')
 # Segmentation network params
 cfg.TRAIN.MODEL = 'DeepLabv2'
 cfg.TRAIN.MULTI_LEVEL = True
@@ -88,8 +88,8 @@ cfg.TRAIN.LAMBDA_ENT = 1.0
 cfg.TRAIN.LAMBDA_ENT2 = 1.0
 cfg.TRAIN.LAMBDA_ENT3 = 1.0
 cfg.TRAIN.LAMBDA_ADV = 0.001
-cfg.NUM_MINI_PATCH_CLUSTERS = 20
-cfg.NUM_PATCH_CLUSTERS = 20
+cfg.NUM_MINI_PATCH_CLUSTERS = 10
+cfg.NUM_PATCH_CLUSTERS = 10
 # Other params
 cfg.TRAIN.MAX_ITERS = 250000
 cfg.TRAIN.EARLY_STOP = 120000
@@ -117,7 +117,7 @@ cfg.TEST.BATCH_SIZE_TARGET = 1
 cfg.TEST.INPUT_SIZE_TARGET = (512, 256)
 cfg.TEST.OUTPUT_SIZE_TARGET = (512, 256)
 
-cfg.TEST.SET_SOURCE = 'val'
+cfg.TEST.SET_SOURCE = 'val500'
 cfg.TEST.BATCH_SIZE_SOURCE = 1
 cfg.TEST.INPUT_SIZE_SOURCE = (640, 360)
 cfg.TEST.OUTPUT_SIZE_SOURCE = (640, 360)
