@@ -12,6 +12,7 @@ import numpy as np
 import torch
 from torch import nn
 from tqdm import tqdm
+from pathlib import Path
 
 from advent.utils.func import per_class_iu, fast_hist
 from advent.utils.serialization import pickle_dump, pickle_load
@@ -73,14 +74,18 @@ def eval_best(cfg, models,
     start_iter = cfg.TEST.SNAPSHOT_STEP
     step = cfg.TEST.SNAPSHOT_STEP
     max_iter = cfg.TEST.SNAPSHOT_MAXITER
-    cache_path = osp.join(cfg.TEST.SNAPSHOT_DIR[0], 'all_res.pkl')
+    cache_path = osp.join(cfg.TEST.SNAPSHOT_DIR[0], descriptor + '_all_res.pkl')
     if osp.exists(cache_path):
         all_res = pickle_load(cache_path)
     else:
         all_res = {}
     cur_best_miou = -1
     cur_best_model = ''
-    for i_iter in range(start_iter, max_iter + 1, step):
+
+    checkpoint_paths = sorted(list(Path(cfg.TEST.SNAPSHOT_DIR[0]).rglob('*.pth')), key=lambda path: int(Path(path).stem.split('_')[1]))
+    # for i_iter in range(start_iter, max_iter + 1, step):
+    for checkpoint_path in checkpoint_paths:
+        i_iter = int(Path(checkpoint_path).stem.split('_')[1])  # Example: GTA5_15000.pth
         restore_from = osp.join(cfg.TEST.SNAPSHOT_DIR[0], f'model_{i_iter}.pth')
         if not osp.exists(restore_from):
             # continue

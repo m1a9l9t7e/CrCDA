@@ -123,7 +123,7 @@ cfg.TEST.INPUT_SIZE_SOURCE = (640, 360)
 cfg.TEST.OUTPUT_SIZE_SOURCE = (640, 360)
 
 cfg.TEST.INFO_TARGET = str(project_root / 'advent/dataset/cityscapes_list/info.json')
-cfg.TEST.WAIT_MODEL = True
+cfg.TEST.WAIT_MODEL = False
 
 # automatic mixed precision (amp) cfg
 cfg.amp = False

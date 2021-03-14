@@ -123,6 +123,7 @@ def main(config_file, exp_suffix, fixed_test_size=True):
 
 
 if __name__ == '__main__':
+    print("Hello World!")
     args = get_arguments()
     print('Called with args:')
     print(args)
