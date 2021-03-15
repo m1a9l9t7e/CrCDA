@@ -15,7 +15,7 @@ from torch.utils import data
 from tensorboardX import SummaryWriter
 
 from advent.dataset.gta5 import GTA5DataSet
-from advent.model.deeplabv2 import get_deeplab_v2
+from advent.model.deeplabv2 import get_deeplab_v2, get_deeplab_v2_crcda
 from advent.dataset.cityscapes import CityscapesDataSet
 from advent.domain_adaptation.config import cfg, cfg_from_file
 from advent.domain_adaptation.eval_UDA import evaluate_domain_adaptation
@@ -69,8 +69,12 @@ def main(config_file, exp_suffix, fixed_test_size=True):
         assert n_models == 1, 'Not yet supported'
     for i in range(n_models):
         if cfg.TEST.MODEL[i] == 'DeepLabv2':
-            model = get_deeplab_v2(num_classes=cfg.NUM_CLASSES,
-                                   multi_level=cfg.TEST.MULTI_LEVEL[i])
+            if cfg.TRAIN.DA_METHOD == 'CrCDA':
+                model = get_deeplab_v2_crcda(num_classes=cfg.NUM_CLASSES,
+                                             num_mini_patch_clusters=cfg.NUM_MINI_PATCH_CLUSTERS,
+                                             num_patch_clusters=cfg.NUM_PATCH_CLUSTERS)
+            else:
+                model = get_deeplab_v2(num_classes=cfg.NUM_CLASSES, multi_level=cfg.TEST.MULTI_LEVEL[i])
         else:
             raise NotImplementedError(f"Not yet supported {cfg.TEST.MODEL[i]}")
         models.append(model)

@@ -9,6 +9,8 @@ EXP_ROOT_SNAPSHOT: /beegfs/work/schoebel/AdvEnt/snapshots
 EXP_ROOT_LOGS: /beegfs/work/schoebel/AdvEnt/logs
 EXP_ROOT_EVAL: /beegfs/work/schoebel/AdvEnt/eval
 NUM_WORKERS: 4
+NUM_MINI_PATCH_CLUSTERS: 10
+NUM_PATCH_CLUSTERS: 10
 TRAIN:
   SET_SOURCE: train
   SET_TARGET: train

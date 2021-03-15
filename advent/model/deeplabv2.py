@@ -185,7 +185,7 @@ class ResNetMultiCrCDA(ResNetMulti):
         # Gradient Reversal Layer
         self.grl = GradientReversalFunction()
 
-    def forward(self, x, grl_lambda):
+    def forward(self, x, grl_lambda=1):
         """
         TODO: The branch of into seg, cr and cr_mini should happen before layer4 to apply to feature level!
         """
