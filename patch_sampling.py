@@ -34,9 +34,14 @@ def extract_samples(image_path):
 
 def calculate_features_threaded(samples):
     pool = mp.Pool(mp.cpu_count())
-    features = pool.map(hog, tqdm(samples, desc='HOG multi'))
+    features = pool.map(calculate_hog, tqdm(samples, desc='HOG multi'))
     pool.close()
     return features
+
+
+def calculate_hog(image):
+    pixels_per_cell = (int(sample_shape[1] / 8), int(sample_shape[1] / 8))
+    return hog(image, pixels_per_cell=pixels_per_cell)
 
 
 def reduce_feature_dims(features, n):
