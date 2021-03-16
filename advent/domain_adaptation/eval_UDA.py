@@ -6,6 +6,7 @@
 # --------------------------------------------------------
 
 import os.path as osp
+import shutil
 import time
 
 import numpy as np
@@ -68,13 +69,15 @@ def eval_single(cfg, models,
 
 def eval_best(cfg, models,
               device, test_loader, interp,
-              fixed_test_size, verbose, descriptor, tensorboard_writer=None):
+              fixed_test_size, verbose, descriptor, tensorboard_writer=None, overwrite=True):
     assert len(models) == 1, 'Not yet supported multi models in this mode'
     assert osp.exists(cfg.TEST.SNAPSHOT_DIR[0]), 'SNAPSHOT_DIR is not found'
     start_iter = cfg.TEST.SNAPSHOT_STEP
     step = cfg.TEST.SNAPSHOT_STEP
     max_iter = cfg.TEST.SNAPSHOT_MAXITER
     cache_path = osp.join(cfg.TEST.SNAPSHOT_DIR[0], descriptor + '_all_res.pkl')
+    if overwrite and osp.exists(cache_path):
+        shutil.rmtree(cache_path)
     if osp.exists(cache_path):
         all_res = pickle_load(cache_path)
     else:
@@ -133,8 +136,8 @@ def eval_best(cfg, models,
         if verbose:
             display_stats(cfg, test_loader.dataset.class_names, inters_over_union_classes)
 
-    # print('\tBest model:', cur_best_model)
-    # print('\tBest mIoU:', cur_best_miou)
+    print('\tBest model:', cur_best_model)
+    print('\tBest mIoU:', cur_best_miou)
 
 
 def load_checkpoint_for_evaluation(model, checkpoint, device):
