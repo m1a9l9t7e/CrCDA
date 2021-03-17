@@ -40,7 +40,6 @@ cfg.EXP_ROOT_LOGS = str(osp.join(cfg.EXP_ROOT, 'logs'))
 cfg.EXP_ROOT_EVAL = str(osp.join(cfg.EXP_ROOT, 'eval'))
 # CUDA
 cfg.GPU_ID = 0
-
 # TRAIN CONFIGS
 cfg.TRAIN = EasyDict()
 cfg.TRAIN.SET_SOURCE = 'all'
@@ -50,16 +49,9 @@ cfg.TRAIN.BATCH_SIZE_TARGET = 1
 cfg.TRAIN.IGNORE_LABEL = 255
 cfg.TRAIN.INPUT_SIZE_SOURCE = (1280, 720)
 cfg.TRAIN.INPUT_SIZE_TARGET = (1024, 512)
-# Alternative sizes to run on smaller gpu
-# cfg.TRAIN.INPUT_SIZE_SOURCE = (640, 360)
-# cfg.TRAIN.INPUT_SIZE_TARGET = (512, 256)
-# cfg.TRAIN.INPUT_SIZE_SOURCE = (320, 180)
-# cfg.TRAIN.INPUT_SIZE_TARGET = (256, 128)
-# cfg.TRAIN.INPUT_SIZE_SOURCE = (160, 90)
-# cfg.TRAIN.INPUT_SIZE_TARGET = (128, 64)
 # Class info
 cfg.TRAIN.INFO_SOURCE = ''
-cfg.TRAIN.INFO_TARGET = ""  # str(project_root / 'advent/dataset/cityscapes_list/info.json')
+cfg.TRAIN.INFO_TARGET = str(project_root / 'advent/dataset/cityscapes_list/info.json')
 # Segmentation network params
 cfg.TRAIN.MODEL = 'DeepLabv2'
 cfg.TRAIN.MULTI_LEVEL = True
