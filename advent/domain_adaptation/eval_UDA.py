@@ -4,9 +4,8 @@
 #
 # Written by Tuan-Hung Vu
 # --------------------------------------------------------
-
+import os
 import os.path as osp
-import shutil
 import time
 
 import numpy as np
@@ -77,7 +76,7 @@ def eval_best(cfg, models,
     max_iter = cfg.TEST.SNAPSHOT_MAXITER
     cache_path = osp.join(cfg.TEST.SNAPSHOT_DIR[0], descriptor + '_all_res.pkl')
     if overwrite and osp.exists(cache_path):
-        shutil.rmtree(cache_path)
+        os.remove(cache_path)
     if osp.exists(cache_path):
         all_res = pickle_load(cache_path)
     else:
