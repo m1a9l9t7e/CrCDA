@@ -72,16 +72,6 @@ cfg.TRAIN.LAMBDA_ADV_AUX = 0.0002
 # MinEnt params
 cfg.TRAIN.LAMBDA_ENT_MAIN = 0.001
 cfg.TRAIN.LAMBDA_ENT_AUX = 0.0002
-# CrCDA params
-cfg.TRAIN.LAMBDA_SEG = 1.0
-cfg.TRAIN.LAMBDA_C2 = 1.0
-cfg.TRAIN.LAMBDA_C3 = 1.0
-cfg.TRAIN.LAMBDA_ENT = 1.0
-cfg.TRAIN.LAMBDA_ENT2 = 1.0
-cfg.TRAIN.LAMBDA_ENT3 = 1.0
-cfg.TRAIN.LAMBDA_ADV = 0.001
-cfg.NUM_MINI_PATCH_CLUSTERS = 10
-cfg.NUM_PATCH_CLUSTERS = 10
 # Other params
 cfg.TRAIN.MAX_ITERS = 250000
 cfg.TRAIN.EARLY_STOP = 120000
@@ -90,6 +80,25 @@ cfg.TRAIN.SNAPSHOT_DIR = ''
 cfg.TRAIN.RANDOM_SEED = 1234
 cfg.TRAIN.TENSORBOARD_LOGDIR = ''
 cfg.TRAIN.TENSORBOARD_VIZRATE = 100
+# CrCDA params
+cfg.TRAIN.LAMBDA_SEG = 1.0
+cfg.TRAIN.LAMBDA_C2 = 0.005
+cfg.TRAIN.LAMBDA_C3 = 0.005
+cfg.TRAIN.LAMBDA_ENT = 0.00005
+cfg.TRAIN.LAMBDA_ENT2 = 0.00005
+cfg.TRAIN.LAMBDA_ENT3 = 0.00005
+cfg.TRAIN.LAMBDA_ADV = 0.00005
+cfg.NUM_MINI_PATCH_CLUSTERS = 10
+cfg.NUM_PATCH_CLUSTERS = 10
+# CrCDA ablation study params
+cfg.CRCDA_ABLATION_STUDY = False
+cfg.TRAIN.USE_SEG = True
+cfg.TRAIN.USE_MINI_PATCH = True
+cfg.TRAIN.USE_PATCH = True
+cfg.TRAIN.USE_SEG_ENT = True
+cfg.TRAIN.USE_MINI_PATCH_ENT = True
+cfg.TRAIN.USE_PATCH_ENT = True
+cfg.TRAIN.USE_DISCRIMINATOR = True
 
 # TEST CONFIGS
 cfg.TEST = EasyDict()
@@ -116,13 +125,6 @@ cfg.TEST.OUTPUT_SIZE_TARGET = (2048, 1024)
 
 cfg.TEST.INFO_TARGET = str(project_root / 'advent/dataset/cityscapes_list/info.json')
 cfg.TEST.WAIT_MODEL = False
-
-# automatic mixed precision (amp) cfg
-cfg.amp = False
-cfg.opt_level = 'O3'
-cfg.keep_batchnorm_fp32 = False
-cfg.loss_scale = None
-cfg.channels_last = True
 
 
 def _merge_a_into_b(a, b):

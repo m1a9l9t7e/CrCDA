@@ -1,0 +1,23 @@
+# the hyper-parameters λent, λD, λcr and N are set as 2.5e−5, 2.5e−5, 5e−3 and 100, respectively.
+SOURCE: GTA
+TARGET: Cityscapes
+NUM_WORKERS: 4
+NUM_PATCH_CLUSTERS: 10
+NUM_MINI_PATCH_CLUSTERS: 10
+TRAIN:
+  SET_SOURCE: train
+  DA_METHOD: CrCDA
+  MODEL: DeepLabv2
+  RESTORE_FROM: ../../pretrained_models/DeepLab_resnet_pretrained_imagenet.pth
+  MULTI_LEVEL: False
+  # Ablation Study Params
+  CRCDA_ABLATION_STUDY: True
+  USE_SEG: True
+  USE_MINI_PATCH: False
+  USE_PATCH: False
+  USE_SEG_ENT: False
+  USE_MINI_PATCH_ENT: False
+  USE_PATCH_ENT: False
+  USE_DISCRIMINATOR: False
+TEST:
+  MODE: best
