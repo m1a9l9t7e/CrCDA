@@ -7,10 +7,7 @@
 import os
 import sys
 from pathlib import Path
-
 import os.path as osp
-
-import cv2
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
@@ -22,13 +19,13 @@ from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from advent.model.discriminator import get_fc_discriminator
+from advent.model.grl import LambdaWrapper
 from advent.utils.func import adjust_learning_rate, adjust_learning_rate_discriminator
 from advent.utils.func import loss_calc, bce_loss
 from advent.utils.loss import entropy_loss
 from advent.utils.func import prob_2_entropy
 from advent.utils.viz_segmask import colorize_mask
-
-# from apex import amp
+from advent.domain_adaptation.CrCDA_ablation import train_crcda as train_crcda_ablation
 
 
 def train_advent(model, trainloader, targetloader, cfg):
@@ -392,7 +389,7 @@ def train_crcda(model, trainloader, targetloader, cfg):
         # mini_patch_scale_labels = torch.from_numpy(label_array.copy()).float().to(device)
         # patch_scale_labels = torch.from_numpy(label_array.copy()).float().to(device)
 
-        pred_src_seg, pred_src_cr_mini, pred_src_cr = model(images_source.cuda(device), grl_lambda=1)
+        pred_src_seg, pred_src_cr_mini, pred_src_cr = model(images_source.cuda(device))
 
         pred_src_seg = interp(pred_src_seg)
         pred_src_cr_mini = interp(pred_src_cr_mini)
@@ -414,11 +411,12 @@ def train_crcda(model, trainloader, targetloader, cfg):
         # TODO: -------------- TARGET FLOW --------------
         _, batch = targetloader_iter.__next__()
         images, _, _, _ = batch
-        pred_trg_seg, pred_trg_cr_mini, pred_trg_cr = model(images.cuda(device), grl_lambda=-1)
+        lambda_wrapper = LambdaWrapper(lambda_=-1)
+        pred_trg_seg, pred_trg_cr_mini, pred_trg_cr = model(images.cuda(device), grl_lambda=lambda_wrapper)
 
-        pred_trg_seg = interp(pred_trg_seg)
-        pred_trg_cr_mini = interp(pred_trg_cr_mini)
-        pred_trg_cr = interp(pred_trg_cr)
+        pred_trg_seg = interp_target(pred_trg_seg)
+        pred_trg_cr_mini = interp_target(pred_trg_cr_mini)
+        pred_trg_cr = interp_target(pred_trg_cr)
         pred_trg_layout = torch.cat((pred_trg_seg, pred_trg_cr_mini, pred_trg_cr), 0)  # concat along channel dimension
 
         # L_ent
@@ -538,7 +536,6 @@ def train_source_only(model, trainloader, targetloader, cfg):
 
         # TODO: -------------- SOURCE FLOW --------------
         _, batch = trainloader_iter.__next__()
-        # images_source, labels, _, _ = batch
         images_source, labels, _, _ = batch
 
         # pred_src_seg, pred_src_cr_mini, pred_src_cr = model(images_source.cuda(device), grl_lambda=1)
@@ -602,8 +599,9 @@ def train_domain_adaptation(model, trainloader, targetloader, cfg):
     elif cfg.TRAIN.DA_METHOD == 'AdvEnt':
         train_advent(model, trainloader, targetloader, cfg)
     elif cfg.TRAIN.DA_METHOD == 'CrCDA':
-        train_crcda(model, trainloader, targetloader, cfg)
-    elif cfg.TRAIN.DA_METHOD == 'source_only':
-        train_source_only(model, trainloader, targetloader, cfg)
+        if cfg.TRAIN.CRCDA_ABLATION_STUDY:
+            train_crcda_ablation(model, trainloader, targetloader, cfg)
+        else:
+            train_crcda(model, trainloader, targetloader, cfg)
     else:
         raise NotImplementedError(f"Not yet supported DA method {cfg.TRAIN.DA_METHOD}")
