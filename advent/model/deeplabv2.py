@@ -205,10 +205,6 @@ class ResNetMultiCrCDA(ResNetMulti):
         seg = self.layer6(x2)  # produce segmap 2
         cr_mini = self.layer6_c2(x2)  # produce Mini-patch-scale prediction
         cr = self.layer6_c3(x2)  # produce Patch-scale prediction
-
-        cr_mini = self.layer6(x2)  # produce Mini-patch-scale prediction
-        cr = self.layer6(x2)  # produce Patch-scale prediction
-
         return seg, cr_mini, cr
 
     def get_10x_lr_params(self):
