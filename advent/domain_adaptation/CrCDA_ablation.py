@@ -156,7 +156,7 @@ def source_flow(cfg, device, interp, model, trainloader_iter):
         pred_src_layout.append(pred_src_cr)
 
     if cfg.TRAIN.USE_DISCRIMINATOR and len(pred_src_layout) > 0:
-        pred_src_layout = torch.cat(pred_src_layout, 0)  # concat along channel dimension
+        pred_src_layout = concatenate_padding(pred_src_layout, device, padding_dimension=1, concat_dimension=0)
 
     if loss != 0:
         loss.backward()
@@ -204,7 +204,7 @@ def target_flow(cfg, d_main, device, interp_target, model, source_label, targetl
 
     loss_adv_trg = 0
     if cfg.TRAIN.USE_DISCRIMINATOR and len(pred_trg_layout) > 0:
-        pred_trg_layout = torch.cat(pred_trg_layout, 0)  # concat along channel dimension
+        pred_trg_layout = concatenate_padding(pred_trg_layout, device, padding_dimension=1, concat_dimension=0)
         d_out = d_main(F.softmax(pred_trg_layout))  # TODO: Softmax here seems like a terrible idea!
         loss_adv_trg = bce_loss(d_out, source_label)
         loss += cfg.TRAIN.LAMBDA_ADV * loss_adv_trg
@@ -274,6 +274,23 @@ def to_numpy(tensor):
         return tensor
     else:
         return tensor.data.cpu().numpy()
+
+
+def concatenate_padding(tensors, device, padding_dimension=1, concat_dimension=0):
+    new_list = []
+    max_dim1 = 0
+    for tensor in tensors:
+        if np.shape(tensor)[padding_dimension] > max_dim1:
+            max_dim1 = np.shape(tensor)[padding_dimension]
+
+    for tensor in tensors:
+        # tensor_size = list(np.shape(to_numpy(tensor)))
+        tensor_size = list(np.shape(tensor))
+        if tensor_size[padding_dimension] < max_dim1:
+            tensor_size[padding_dimension] = max_dim1 - tensor_size[padding_dimension]
+            new_list.append(torch.cat([tensor, torch.zeros(tensor_size).cuda(device)], padding_dimension))
+
+    return torch.cat(new_list, concat_dimension)
 
 
 def draw_in_tensorboard(writer, images, i_iter, pred_main, num_classes, type_):
