@@ -138,21 +138,21 @@ def source_flow(cfg, device, interp, model, trainloader_iter):
     if cfg.TRAIN.USE_SEG:
         pred_src_seg = interp(pred_src_seg)
         loss_seg = loss_calc(pred_src_seg, labels, device)
-        loss += loss_seg
+        loss += cfg.TRAIN.LAMBDA_SEG * loss_seg
         pred_src_layout.append(pred_src_seg)
     # L_c2
     loss_c2 = 0
     if cfg.TRAIN.USE_MINI_PATCH:
         pred_src_cr_mini = interp(pred_src_cr_mini)
         loss_c2 = loss_calc(pred_src_cr_mini, mini_patch_scale_labels, device)
-        loss += loss_c2
+        loss += cfg.TRAIN.LAMBDA_C2 * loss_c2
         pred_src_layout.append(pred_src_cr_mini)
     # L_c3
     loss_c3 = 0
     if cfg.TRAIN.USE_PATCH:
         pred_src_cr = interp(pred_src_cr)
         loss_c3 = loss_calc(pred_src_cr, patch_scale_labels, device)
-        loss += loss_c3
+        loss += cfg.TRAIN.LAMBDA_C3 * loss_c3
         pred_src_layout.append(pred_src_cr)
 
     if cfg.TRAIN.USE_DISCRIMINATOR and len(pred_src_layout) > 0:
@@ -179,21 +179,21 @@ def target_flow(cfg, d_main, device, interp_target, model, source_label, targetl
     if cfg.TRAIN.USE_SEG_ENT:
         pred_trg_seg = interp_target(pred_trg_seg)
         loss_ent = entropy_loss(F.softmax(pred_trg_seg))
-        loss += loss_ent
+        loss += cfg.TRAIN.LAMBDA_ENT * loss_ent
         pred_trg_layout.append(pred_trg_seg)
     # L_ent2
     loss_ent2 = 0
     if cfg.TRAIN.USE_MINI_PATCH_ENT:
         pred_trg_cr_mini = interp_target(pred_trg_cr_mini)
         loss_ent2 = entropy_loss(F.softmax(pred_trg_cr_mini))
-        loss += loss_ent2
+        loss += cfg.TRAIN.LAMBDA_ENT2 * loss_ent2
         pred_trg_layout.append(pred_trg_cr_mini)
     # L_ent2
     loss_ent3 = 0
     if cfg.TRAIN.USE_PATCH_ENT:
         pred_trg_cr = interp_target(pred_trg_cr)
         loss_ent3 = entropy_loss(F.softmax(pred_trg_cr))
-        loss += loss_ent3
+        loss += cfg.TRAIN.LAMBDA_ENT3 * loss_ent3
         pred_trg_layout.append(pred_trg_cr)
 
     loss = -loss  # This way, seg heads maximize entropy, and feature extractor minimizes it
