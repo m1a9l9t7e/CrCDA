@@ -222,7 +222,7 @@ def show_cluster_examples(samples, labels, n=64):
         cv2.waitKey(0)
 
 
-def get_image_labels(samples, labels, image_shape, sample_shape, one_hot_encoding=True, show_segmented=False):
+def get_image_labels(samples, labels, image_shape, sample_shape, one_hot_encoding=True, show_segmented=False, dbscan=False):
     print_red("Generating image labels{}:".format(" with one hot encoding" if one_hot_encoding else ""))
     w = int(image_shape[1] / sample_shape[1])
     h = int(image_shape[0] / sample_shape[0])
@@ -232,7 +232,8 @@ def get_image_labels(samples, labels, image_shape, sample_shape, one_hot_encodin
         cv2.imshow('win', segmented_img)
         cv2.waitKey(0)
 
-    labels = labels + 1  # Needed as currently there is a -1 class for Noise
+    if dbscan:
+        labels = labels + 1  # Needed with dbscan as there is a -1 class for Noise
 
     if one_hot_encoding:
         n_classes = len(set(labels))

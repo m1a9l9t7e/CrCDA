@@ -200,7 +200,7 @@ def target_flow(cfg, d_main, device, interp_target, model, source_label, targetl
 
     if loss != 0:
         # keep grad graph for application of discriminator adv loss with different grl lambda
-        loss.backward(retain_graph=(cfg.TRAIN.USE_DISCRIMINATOR and len(pred_trg_layout) > 0))
+        loss.backward(retain_graph=(cfg.TRAIN.USE_DISCRIMINATOR and cfg.TRAIN.USE_DISCRIMINATOR and len(pred_trg_layout) > 0))
 
     loss_adv_trg = 0
     if cfg.TRAIN.USE_DISCRIMINATOR and len(pred_trg_layout) > 0:
