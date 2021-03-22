@@ -21,8 +21,9 @@ from torch import nn
 from torchvision.utils import make_grid
 from tqdm import tqdm
 
+from advent.domain_adaptation.eval_UDA import display_stats
 from advent.model.discriminator import get_fc_discriminator
-from advent.utils.func import adjust_learning_rate, adjust_learning_rate_discriminator
+from advent.utils.func import adjust_learning_rate, adjust_learning_rate_discriminator, fast_hist, per_class_iu
 from advent.utils.func import loss_calc, bce_loss
 from advent.utils.loss import entropy_loss
 from advent.utils.func import prob_2_entropy
@@ -33,7 +34,7 @@ from advent.model.grl import LambdaWrapper
 # from apex import amp
 
 
-def train_crcda(model, trainloader, targetloader, cfg):
+def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
     ''' UDA training with CrCDA '''
     # Create the model and start the training.
     input_size_source = cfg.TRAIN.INPUT_SIZE_SOURCE
@@ -119,7 +120,7 @@ def train_crcda(model, trainloader, targetloader, cfg):
             'loss_d': loss_d  # this is only the d loss from training with target!
         }
 
-        logging(cfg, current_losses, d_main, i_iter, images, images_source, model, num_classes, pred_src_seg, pred_trg_seg, viz_tensorboard, writer)
+        logging(cfg, current_losses, d_main, device, i_iter, images, images_source, model, num_classes, pred_src_seg, pred_trg_seg, viz_tensorboard, writer, testloader=testloader)
 
         if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter >= cfg.TRAIN.EARLY_STOP - 1:
             break
@@ -236,7 +237,7 @@ def update_discriminator(d_main, optimizer, optimizer_d_main, pred_src_layout, p
     return loss_d
 
 
-def logging(cfg, current_losses, d_main, i_iter, images, images_source, model, num_classes, pred_src_seg, pred_trg_seg, viz_tensorboard, writer):
+def logging(cfg, current_losses, d_main, device, i_iter, images, images_source, model, num_classes, pred_src_seg, pred_trg_seg, viz_tensorboard, writer, testloader=None):
     if i_iter % 500 == 0:
         print_losses(current_losses, i_iter)
     if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter != 0:
@@ -245,6 +246,8 @@ def logging(cfg, current_losses, d_main, i_iter, images, images_source, model, n
         snapshot_dir = Path(cfg.TRAIN.SNAPSHOT_DIR)
         torch.save(model.state_dict(), snapshot_dir / f'model_{i_iter}.pth')
         torch.save(d_main.state_dict(), snapshot_dir / f'model_{i_iter}_D_main.pth')
+        if testloader is not None:
+            eval_model(cfg, model, testloader, i_iter, writer, device)
     sys.stdout.flush()
     # Visualize with tensorboard
     if viz_tensorboard:
@@ -311,8 +314,46 @@ def draw_in_tensorboard(writer, images, i_iter, pred_main, num_classes, type_):
     writer.add_image(f'Entropy - {type_}', grid_image, i_iter)
 
 
-def train_domain_adaptation(model, trainloader, targetloader, cfg):
-    if cfg.TRAIN.DA_METHOD == 'CrCDA':
-        train_crcda(model, trainloader, targetloader, cfg)
+def eval_model(cfg, model, testloader, i_iter, writer, device, fixed_test_size=True, descriptor='target_miou', verbose=False, extra=True):
+    # eval target
+    interp_target = None
+    if fixed_test_size:
+        interp_target = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_TARGET[1], cfg.TEST.OUTPUT_SIZE_TARGET[0]), mode='bilinear', align_corners=True)
+
+    print("<==:MODE_CHANGE:TARGET_EVAL:==>")
+    models = [model]
+    interp = interp_target
+    verbose = False
+    assert len(cfg.TEST.RESTORE_FROM) == len(models), 'Number of models are not matched'
+    hist = np.zeros((cfg.NUM_CLASSES, cfg.NUM_CLASSES))
+    for index, batch in tqdm(enumerate(testloader)):
+        image, label, _, name = batch
+        if not fixed_test_size:
+            interp = nn.Upsample(size=(label.shape[1], label.shape[2]), mode='bilinear', align_corners=True)
+        with torch.no_grad():
+            output = None
+            for model, model_weight in zip(models, cfg.TEST.MODEL_WEIGHT):
+                pred_main = model(image.cuda(device))[model.get_main_index()]
+                output_ = interp(pred_main).cpu().data[0].numpy()
+                if output is None:
+                    output = model_weight * output_
+                else:
+                    output += model_weight * output_
+            assert output is not None, 'Output is None'
+            output = output.transpose(1, 2, 0)
+            output = np.argmax(output, axis=2)
+        label = label.numpy()[0]
+        hist += fast_hist(label.flatten(), output.flatten(), cfg.NUM_CLASSES)
+        sys.stdout.flush()
+    inters_over_union_classes = per_class_iu(hist)
+    miou = np.nanmean(inters_over_union_classes)
+    if extra:
+        print('\n\n\033[93m================================================================================================\033[0m')
+        print('\033[93m' + 'mIoU = ' + str(round(miou * 100, 2)) +'\033[0m')
+        print('\033[93m================================================================================================\033[0m\n\n')
     else:
-        raise NotImplementedError(f"Not yet supported DA method {cfg.TRAIN.DA_METHOD}")
+        print(f'mIoU = \t{round(miou * 100, 2)}')
+    if writer is not None:
+        writer.add_scalar(descriptor, miou, i_iter)
+    if verbose:
+        display_stats(cfg, testloader.dataset.class_names, inters_over_union_classes)

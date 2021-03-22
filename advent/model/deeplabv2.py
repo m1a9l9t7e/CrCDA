@@ -174,6 +174,10 @@ class ResNetMulti(nn.Module):
         return [{'params': self.get_1x_lr_params_no_scale(), 'lr': lr},
                 {'params': self.get_10x_lr_params(), 'lr': 10 * lr}]
 
+    def get_main_index(self):
+        """Returns the index of the main prediction tensor of the forward() method. """
+        return 1
+
 
 class ResNetMultiCrCDA(ResNetMulti):
 
@@ -224,6 +228,9 @@ class ResNetMultiCrCDA(ResNetMulti):
         for j in range(len(b)):
             for i in b[j]:
                 yield i
+
+    def get_main_index(self):
+        return 0
 
 
 def get_deeplab_v2(num_classes=19, multi_level=True):

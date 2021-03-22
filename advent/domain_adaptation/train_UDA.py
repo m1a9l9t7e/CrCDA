@@ -25,10 +25,10 @@ from advent.utils.func import loss_calc, bce_loss
 from advent.utils.loss import entropy_loss
 from advent.utils.func import prob_2_entropy
 from advent.utils.viz_segmask import colorize_mask
-from advent.domain_adaptation.CrCDA_ablation import train_crcda as train_crcda_ablation
+from advent.domain_adaptation.CrCDA_ablation import train_crcda as train_crcda_ablation, eval_model
 
 
-def train_advent(model, trainloader, targetloader, cfg):
+def train_advent(model, trainloader, targetloader, cfg, testloader=None):
     ''' UDA training with advent
     '''
     # Create the model and start the training.
@@ -217,7 +217,7 @@ def draw_in_tensorboard(writer, images, i_iter, pred_main, num_classes, type_):
     writer.add_image(f'Entropy - {type_}', grid_image, i_iter)
 
 
-def train_minent(model, trainloader, targetloader, cfg):
+def train_minent(model, trainloader, targetloader, cfg, testloader=None):
     ''' UDA training with minEnt
     '''
     # Create the model and start the training.
@@ -302,10 +302,12 @@ def train_minent(model, trainloader, targetloader, cfg):
         print_losses(current_losses, i_iter)
 
         if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter != 0:
+            print_losses(current_losses, i_iter)
             print('taking snapshot ...')
             print('exp =', cfg.TRAIN.SNAPSHOT_DIR)
             torch.save(model.state_dict(),
                        osp.join(cfg.TRAIN.SNAPSHOT_DIR, f'model_{i_iter}.pth'))
+            eval_model(cfg, model, testloader, i_iter, writer, device)
             if i_iter >= cfg.TRAIN.EARLY_STOP - 1:
                 break
         sys.stdout.flush()
@@ -319,7 +321,7 @@ def train_minent(model, trainloader, targetloader, cfg):
                 draw_in_tensorboard(writer, images_source, i_iter, pred_src_main, num_classes, 'S')
 
 
-def train_crcda(model, trainloader, targetloader, cfg):
+def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
     ''' UDA training with CrCDA '''
     # Create the model and start the training.
     input_size_source = cfg.TRAIN.INPUT_SIZE_SOURCE
@@ -593,15 +595,15 @@ def to_numpy(tensor):
         return tensor.data.cpu().numpy()
 
 
-def train_domain_adaptation(model, trainloader, targetloader, cfg):
+def train_domain_adaptation(model, trainloader, targetloader, cfg, testloader=None):
     if cfg.TRAIN.DA_METHOD == 'MinEnt':
-        train_minent(model, trainloader, targetloader, cfg)
+        train_minent(model, trainloader, targetloader, cfg, testloader=testloader)
     elif cfg.TRAIN.DA_METHOD == 'AdvEnt':
-        train_advent(model, trainloader, targetloader, cfg)
+        train_advent(model, trainloader, targetloader, cfg, testloader=testloader)
     elif cfg.TRAIN.DA_METHOD == 'CrCDA':
         if cfg.TRAIN.CRCDA_ABLATION_STUDY:
-            train_crcda_ablation(model, trainloader, targetloader, cfg)
+            train_crcda_ablation(model, trainloader, targetloader, cfg, testloader=testloader)
         else:
-            train_crcda(model, trainloader, targetloader, cfg)
+            train_crcda(model, trainloader, targetloader, cfg, testloader=testloader)
     else:
         raise NotImplementedError(f"Not yet supported DA method {cfg.TRAIN.DA_METHOD}")

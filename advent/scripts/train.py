@@ -151,8 +151,20 @@ def main():
     with open(osp.join(cfg.TRAIN.SNAPSHOT_DIR, 'train_cfg.yml'), 'w') as yaml_file:
         yaml.dump(cfg, yaml_file, default_flow_style=False)
 
+    test_dataset = CityscapesDataSet(root=cfg.DATA_DIRECTORY_TARGET,
+                                     list_path=cfg.DATA_LIST_TARGET,
+                                     set=cfg.TEST.SET_TARGET,
+                                     info_path=cfg.TEST.INFO_TARGET,
+                                     crop_size=cfg.TEST.INPUT_SIZE_TARGET,
+                                     mean=cfg.TEST.IMG_MEAN,
+                                     labels_size=cfg.TEST.OUTPUT_SIZE_TARGET)
+    testloader = data.DataLoader(test_dataset,
+                                 batch_size=cfg.TEST.BATCH_SIZE_TARGET,
+                                 num_workers=cfg.NUM_WORKERS,
+                                 shuffle=False,
+                                 pin_memory=True)
     # UDA TRAINING
-    train_domain_adaptation(model, source_loader, target_loader, cfg)
+    train_domain_adaptation(model, source_loader, target_loader, cfg, testloader=testloader)
 
 
 if __name__ == '__main__':
