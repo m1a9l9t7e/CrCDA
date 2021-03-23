@@ -320,13 +320,13 @@ def eval_model(cfg, model, testloader, i_iter, writer, device, fixed_test_size=T
     if fixed_test_size:
         interp_target = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_TARGET[1], cfg.TEST.OUTPUT_SIZE_TARGET[0]), mode='bilinear', align_corners=True)
 
-    print("<==:MODE_CHANGE:TARGET_EVAL:==>")
     models = [model]
     interp = interp_target
     verbose = False
     assert len(cfg.TEST.RESTORE_FROM) == len(models), 'Number of models are not matched'
     hist = np.zeros((cfg.NUM_CLASSES, cfg.NUM_CLASSES))
-    for index, batch in tqdm(enumerate(testloader)):
+    print("Evaluating Model...")
+    for index, batch in enumerate(testloader):
         image, label, _, name = batch
         if not fixed_test_size:
             interp = nn.Upsample(size=(label.shape[1], label.shape[2]), mode='bilinear', align_corners=True)
@@ -348,9 +348,7 @@ def eval_model(cfg, model, testloader, i_iter, writer, device, fixed_test_size=T
     inters_over_union_classes = per_class_iu(hist)
     miou = np.nanmean(inters_over_union_classes)
     if extra:
-        print('\n\n\033[93m================================================================================================\033[0m')
-        print('\033[93m' + 'mIoU = ' + str(round(miou * 100, 2)) +'\033[0m')
-        print('\033[93m================================================================================================\033[0m\n\n')
+        print('\033[93m' + 'mIoU = ' + str(round(miou * 100, 2)) +'\033[0m\n')
     else:
         print(f'mIoU = \t{round(miou * 100, 2)}')
     if writer is not None:
