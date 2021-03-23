@@ -100,6 +100,11 @@ def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
         loss_d = 0
         if cfg.TRAIN.USE_DISCRIMINATOR:
             loss_d = update_discriminator(d_main, optimizer, optimizer_d_main, pred_src_layout, pred_trg_layout, source_label, target_label)
+        else:
+            if len(pred_src_layout) > 0:
+                pred_src_layout = [tensor.detach() for tensor in pred_src_layout]
+            if len(pred_trg_layout) > 0:
+                pred_trg_layout = [tensor.detach() for tensor in pred_trg_layout]
 
         optimizer.step()
         # --------------- LOGGING -----------------
@@ -134,23 +139,26 @@ def source_flow(cfg, device, interp, model, trainloader_iter):
     loss_seg = 0
     if cfg.TRAIN.USE_SEG:
         pred_src_seg = interp(pred_src_seg)
+        pred_src_layout.append(pred_src_seg)
         loss_seg = loss_calc(pred_src_seg, labels, device)
         loss += cfg.TRAIN.LAMBDA_SEG * loss_seg
-        pred_src_layout.append(pred_src_seg)
+        loss_seg = loss_seg.detach()
     # L_c2
     loss_c2 = 0
     if cfg.TRAIN.USE_MINI_PATCH:
         pred_src_cr_mini = interp(pred_src_cr_mini)
+        pred_src_layout.append(pred_src_cr_mini)
         loss_c2 = loss_calc(pred_src_cr_mini, mini_patch_scale_labels, device)
         loss += cfg.TRAIN.LAMBDA_C2 * loss_c2
-        pred_src_layout.append(pred_src_cr_mini)
+        loss_c2 = loss_c2.detach()
     # L_c3
     loss_c3 = 0
     if cfg.TRAIN.USE_PATCH:
         pred_src_cr = interp(pred_src_cr)
+        pred_src_layout.append(pred_src_cr)
         loss_c3 = loss_calc(pred_src_cr, patch_scale_labels, device)
         loss += cfg.TRAIN.LAMBDA_C3 * loss_c3
-        pred_src_layout.append(pred_src_cr)
+        loss_c3 = loss_c3.detach()
 
     if cfg.TRAIN.USE_DISCRIMINATOR and len(pred_src_layout) > 0:
         pred_src_layout = concatenate_padding(pred_src_layout, device, padding_dimension=1, concat_dimension=0)
@@ -158,7 +166,7 @@ def source_flow(cfg, device, interp, model, trainloader_iter):
     if loss != 0:
         loss.backward()
 
-    return images_source, loss_c2, loss_c3, loss_seg, pred_src_layout, pred_src_seg
+    return images_source, loss_c2, loss_c3, loss_seg, pred_src_layout, pred_src_seg.detach()
 
 
 def target_flow(cfg, d_main, device, interp_target, model, source_label, targetloader_iter):
@@ -175,23 +183,26 @@ def target_flow(cfg, d_main, device, interp_target, model, source_label, targetl
     loss_ent = 0
     if cfg.TRAIN.USE_SEG_ENT:
         pred_trg_seg = interp_target(pred_trg_seg)
+        pred_trg_layout.append(pred_trg_seg)
         loss_ent = entropy_loss(F.softmax(pred_trg_seg))
         loss += cfg.TRAIN.LAMBDA_ENT * loss_ent
-        pred_trg_layout.append(pred_trg_seg)
+        loss_ent = loss_ent.detach()
     # L_ent2
     loss_ent2 = 0
     if cfg.TRAIN.USE_MINI_PATCH_ENT:
         pred_trg_cr_mini = interp_target(pred_trg_cr_mini)
+        pred_trg_layout.append(pred_trg_cr_mini)
         loss_ent2 = entropy_loss(F.softmax(pred_trg_cr_mini))
         loss += cfg.TRAIN.LAMBDA_ENT2 * loss_ent2
-        pred_trg_layout.append(pred_trg_cr_mini)
+        loss_ent2 = loss_ent2.detach()
     # L_ent2
     loss_ent3 = 0
     if cfg.TRAIN.USE_PATCH_ENT:
         pred_trg_cr = interp_target(pred_trg_cr)
+        pred_trg_layout.append(pred_trg_cr)
         loss_ent3 = entropy_loss(F.softmax(pred_trg_cr))
         loss += cfg.TRAIN.LAMBDA_ENT3 * loss_ent3
-        pred_trg_layout.append(pred_trg_cr)
+        loss_ent3 = loss_ent3.detach()
 
     loss = -loss  # This way, seg heads maximize entropy, and feature extractor minimizes it
 
@@ -207,8 +218,9 @@ def target_flow(cfg, d_main, device, interp_target, model, source_label, targetl
         loss += cfg.TRAIN.LAMBDA_ADV * loss_adv_trg
         lambda_wrapper.set_lambda(1)
         loss.backward()
+        loss_adv_trg = loss_adv_trg.detach()
 
-    return images_target, loss_adv_trg, loss_ent, loss_ent2, loss_ent3, pred_trg_layout, pred_trg_seg
+    return images_target, loss_adv_trg, loss_ent, loss_ent2, loss_ent3, pred_trg_layout, pred_trg_seg.detach()
 
 
 def update_discriminator(d_main, optimizer, optimizer_d_main, pred_src_layout, pred_trg_layout, source_label, target_label):
@@ -229,15 +241,15 @@ def update_discriminator(d_main, optimizer, optimizer_d_main, pred_src_layout, p
     loss_d = loss_d / 2
     loss_d.backward()
     optimizer_d_main.step()
-    return loss_d
+    return loss_d.detach()
 
 
 def logging(cfg, current_losses, d_main, device, i_iter, images, images_source, model, num_classes, pred_src_seg, pred_trg_seg, viz_tensorboard, writer, testloader=None):
     # if i_iter % 500 == 0:
     #     tqdm.write(get_loss_string(current_losses, i_iter))
     if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter != 0:
-        print('taking snapshot ...')
-        print('exp =', cfg.TRAIN.SNAPSHOT_DIR)
+        # print('\ntaking snapshot ...')
+        # print('exp =', cfg.TRAIN.SNAPSHOT_DIR)
         snapshot_dir = Path(cfg.TRAIN.SNAPSHOT_DIR)
         torch.save(model.state_dict(), snapshot_dir / f'model_{i_iter}.pth')
         torch.save(d_main.state_dict(), snapshot_dir / f'model_{i_iter}_D_main.pth')
@@ -320,7 +332,7 @@ def eval_model(cfg, model, testloader, i_iter, writer, device, fixed_test_size=T
     verbose = False
     assert len(cfg.TEST.RESTORE_FROM) == len(models), 'Number of models are not matched'
     hist = np.zeros((cfg.NUM_CLASSES, cfg.NUM_CLASSES))
-    print("Evaluating Model...")
+    print("\nEvaluating Model...")
     for index, batch in enumerate(testloader):
         image, label, _, name = batch
         if not fixed_test_size:
@@ -343,7 +355,7 @@ def eval_model(cfg, model, testloader, i_iter, writer, device, fixed_test_size=T
     inters_over_union_classes = per_class_iu(hist)
     miou = np.nanmean(inters_over_union_classes)
     if extra:
-        print('\033[93m' + 'mIoU = ' + str(round(miou * 100, 2)) +'\033[0m\n')
+        print('\033[93m' + 'target val mIoU = ' + str(round(miou * 100, 2)) +'\033[0m\n')
     else:
         print(f'mIoU = \t{round(miou * 100, 2)}')
     if writer is not None:
