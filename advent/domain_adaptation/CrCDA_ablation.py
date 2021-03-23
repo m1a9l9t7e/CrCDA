@@ -7,10 +7,6 @@
 import os
 import sys
 from pathlib import Path
-
-import os.path as osp
-
-import cv2
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
@@ -19,8 +15,6 @@ import torch.optim as optim
 from tensorboardX import SummaryWriter
 from torch import nn
 from torchvision.utils import make_grid
-from tqdm import tqdm
-
 from advent.domain_adaptation.eval_UDA import display_stats
 from advent.model.discriminator import get_fc_discriminator
 from advent.utils.func import adjust_learning_rate, adjust_learning_rate_discriminator, fast_hist, per_class_iu
@@ -29,9 +23,7 @@ from advent.utils.loss import entropy_loss
 from advent.utils.func import prob_2_entropy
 from advent.utils.viz_segmask import colorize_mask
 from advent.model.grl import LambdaWrapper
-
-
-# from apex import amp
+from tqdm import trange
 
 
 def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
@@ -79,8 +71,9 @@ def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
     target_label = 1
     trainloader_iter = enumerate(trainloader)
     targetloader_iter = enumerate(targetloader)
-    for i_iter in tqdm(range(cfg.TRAIN.EARLY_STOP + 1)):
 
+    t = trange(cfg.TRAIN.EARLY_STOP + 1, desc='Loss', leave=True)
+    for i_iter in t:
         # reset optimizers
         optimizer.zero_grad()
         # optimizer_d_aux.zero_grad()
@@ -108,6 +101,7 @@ def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
         if cfg.TRAIN.USE_DISCRIMINATOR:
             loss_d = update_discriminator(d_main, optimizer, optimizer_d_main, pred_src_layout, pred_trg_layout, source_label, target_label)
 
+        optimizer.step()
         # --------------- LOGGING -----------------
         current_losses = {
             'loss_src_seg': loss_seg,
@@ -119,6 +113,8 @@ def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
             'loss_trg_adv': loss_adv_trg,
             'loss_d': loss_d  # this is only the d loss from training with target!
         }
+
+        t.set_description(get_loss_string(current_losses, i_iter))
 
         logging(cfg, current_losses, d_main, device, i_iter, images, images_source, model, num_classes, pred_src_seg, pred_trg_seg, viz_tensorboard, writer, testloader=testloader)
 
@@ -232,14 +228,13 @@ def update_discriminator(d_main, optimizer, optimizer_d_main, pred_src_layout, p
     loss_d = bce_loss(d_out, target_label)
     loss_d = loss_d / 2
     loss_d.backward()
-    optimizer.step()
     optimizer_d_main.step()
     return loss_d
 
 
 def logging(cfg, current_losses, d_main, device, i_iter, images, images_source, model, num_classes, pred_src_seg, pred_trg_seg, viz_tensorboard, writer, testloader=None):
-    if i_iter % 500 == 0:
-        print_losses(current_losses, i_iter)
+    # if i_iter % 500 == 0:
+    #     tqdm.write(get_loss_string(current_losses, i_iter))
     if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter != 0:
         print('taking snapshot ...')
         print('exp =', cfg.TRAIN.SNAPSHOT_DIR)
@@ -258,13 +253,13 @@ def logging(cfg, current_losses, d_main, device, i_iter, images, images_source, 
             draw_in_tensorboard(writer, images_source, i_iter, pred_src_seg, num_classes, 'S')
 
 
-def print_losses(current_losses, i_iter):
+def get_loss_string(current_losses, i_iter):
     list_strings = []
     for loss_name, loss_value in current_losses.items():
         if loss_value != 0:
             list_strings.append(f'{loss_name} = {to_numpy(loss_value):.3f} ')
     full_string = ' '.join(list_strings)
-    tqdm.write(f'iter = {i_iter} {full_string}')
+    return f'iter = {i_iter} {full_string}'
 
 
 def log_losses_tensorboard(writer, current_losses, i_iter):
