@@ -36,3 +36,21 @@ def entropy_loss(v):
     assert v.dim() == 4
     n, c, h, w = v.size()
     return -torch.sum(torch.mul(v, torch.log2(v + 1e-30))) / (n * h * w * np.log2(c))
+
+
+def entropy_loss_with_regularization(v, i_iter, max_iter=50000):
+    """
+        Entropy loss for probabilistic prediction vectors
+        input: batch_size x channels x h x w
+        output: batch_size x 1 x h x w
+    """
+    assert v.dim() == 4
+    n, c, h, w = v.size()
+    x = torch.mul(v, torch.log2(v + 1e-30))
+    x = x - torch.mean(x) * get_lambda_reg(i_iter, max_iter)  # regularization
+    loss = torch.max(x, torch.zeros_like(x)) / (n * h * w * c)  # minent uses np.log2(c)
+    return -torch.sum(loss)
+
+
+def get_lambda_reg(i_iter, max_iter):
+    return (1 - i_iter / max_iter) ** 0.9

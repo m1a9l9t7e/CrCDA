@@ -205,12 +205,12 @@ def target_flow(cfg, d_main, device, interp_target, model, source_label, targetl
 
     if loss != 0:
         # keep grad graph for application of discriminator adv loss with different grl lambda
-        loss.backward(retain_graph=(cfg.TRAIN.USE_DISCRIMINATOR and cfg.TRAIN.USE_DISCRIMINATOR and len(pred_trg_layout) > 0))
+        loss.backward(retain_graph=(cfg.TRAIN.USE_DISCRIMINATOR and len(pred_trg_layout) > 0))
 
     loss_adv_trg = 0
     if cfg.TRAIN.USE_DISCRIMINATOR and len(pred_trg_layout) > 0:
         pred_trg_layout = concatenate_padding(pred_trg_layout, device, padding_dimension=1, concat_dimension=0)
-        d_out = d_main(F.softmax(pred_trg_layout))  # TODO: Softmax here seems like a terrible idea!
+        d_out = d_main(F.softmax(pred_trg_layout))  # TODO: Softmax here?
         loss_adv_trg = bce_loss(d_out, source_label)
         loss += cfg.TRAIN.LAMBDA_ADV * loss_adv_trg
         lambda_wrapper.set_lambda(1)
@@ -227,13 +227,13 @@ def update_discriminator(d_main, optimizer, optimizer_d_main, pred_src_layout, p
         param.requires_grad = True
     # train with source
     pred_src = pred_src_layout.detach()
-    d_out = d_main(F.softmax(pred_src))  # TODO: Softmax here seems like a terrible idea!
+    d_out = d_main(F.softmax(pred_src))  # TODO: Softmax here?
     loss_d = bce_loss(d_out, source_label)
     loss_d = loss_d / 2
     loss_d.backward()
     # train with target
     pred_trg = pred_trg_layout.detach()
-    d_out = d_main(F.softmax(pred_trg))  # TODO: Softmax here seems like a terrible idea!
+    d_out = d_main(F.softmax(pred_trg))  # TODO: Softmax here?
     loss_d = bce_loss(d_out, target_label)
     loss_d = loss_d / 2
     loss_d.backward()
