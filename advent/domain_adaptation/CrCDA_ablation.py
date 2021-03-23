@@ -19,7 +19,7 @@ from advent.domain_adaptation.eval_UDA import display_stats
 from advent.model.discriminator import get_fc_discriminator
 from advent.utils.func import adjust_learning_rate, adjust_learning_rate_discriminator, fast_hist, per_class_iu
 from advent.utils.func import loss_calc, bce_loss
-from advent.utils.loss import entropy_loss
+from advent.utils.loss import entropy_loss, entropy_loss_with_regularization
 from advent.utils.func import prob_2_entropy
 from advent.utils.viz_segmask import colorize_mask
 from advent.model.grl import LambdaWrapper
@@ -93,8 +93,7 @@ def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
 
         # -------------- TARGET FLOW --------------
         images, loss_adv_trg, loss_ent, loss_ent2, loss_ent3, pred_trg_layout, pred_trg_seg = target_flow(cfg, d_main, device, interp_target, model,
-                                                                                                          source_label,
-                                                                                                          targetloader_iter)
+                                                                                                          source_label, targetloader_iter, i_iter)
 
         # -------------- DISCRIMINATOR --------------
         loss_d = 0
@@ -163,10 +162,11 @@ def source_flow(cfg, device, interp, model, trainloader_iter):
     if loss != 0:
         loss.backward()
 
+    pred_src_layout = [tensor.detach() for tensor in pred_src_layout]
     return images_source, loss_c2, loss_c3, loss_seg, pred_src_layout, pred_src_seg.detach()
 
 
-def target_flow(cfg, d_main, device, interp_target, model, source_label, targetloader_iter):
+def target_flow(cfg, d_main, device, interp_target, model, source_label, targetloader_iter, i_iter):
     """ adversarial training with local minmax entropy loss and global alignment discriminator loss """
     _, batch = targetloader_iter.__next__()
     images_target, _, _, _ = batch
@@ -175,13 +175,12 @@ def target_flow(cfg, d_main, device, interp_target, model, source_label, targetl
 
     loss = 0
     pred_trg_layout = []
-
     # L_ent
     loss_ent = 0
     if cfg.TRAIN.USE_SEG_ENT:
         pred_trg_seg = interp_target(pred_trg_seg)
         pred_trg_layout.append(pred_trg_seg)
-        loss_ent = entropy_loss(F.softmax(pred_trg_seg))
+        loss_ent = entropy_loss_with_regularization(F.softmax(pred_trg_seg), i_iter, cfg.TRAIN.ENT_REG_MAX_ITER)
         loss += cfg.TRAIN.LAMBDA_ENT * loss_ent
         loss_ent = loss_ent.detach()
     # L_ent2
@@ -189,7 +188,7 @@ def target_flow(cfg, d_main, device, interp_target, model, source_label, targetl
     if cfg.TRAIN.USE_MINI_PATCH_ENT:
         pred_trg_cr_mini = interp_target(pred_trg_cr_mini)
         pred_trg_layout.append(pred_trg_cr_mini)
-        loss_ent2 = entropy_loss(F.softmax(pred_trg_cr_mini))
+        loss_ent2 = entropy_loss_with_regularization(F.softmax(pred_trg_cr_mini), i_iter, cfg.TRAIN.ENT_REG_MAX_ITER)
         loss += cfg.TRAIN.LAMBDA_ENT2 * loss_ent2
         loss_ent2 = loss_ent2.detach()
     # L_ent2
@@ -197,7 +196,7 @@ def target_flow(cfg, d_main, device, interp_target, model, source_label, targetl
     if cfg.TRAIN.USE_PATCH_ENT:
         pred_trg_cr = interp_target(pred_trg_cr)
         pred_trg_layout.append(pred_trg_cr)
-        loss_ent3 = entropy_loss(F.softmax(pred_trg_cr))
+        loss_ent3 = entropy_loss_with_regularization(F.softmax(pred_trg_cr), i_iter, cfg.TRAIN.ENT_REG_MAX_ITER)
         loss += cfg.TRAIN.LAMBDA_ENT3 * loss_ent3
         loss_ent3 = loss_ent3.detach()
 
@@ -242,8 +241,6 @@ def update_discriminator(d_main, optimizer, optimizer_d_main, pred_src_layout, p
 
 
 def logging(cfg, current_losses, d_main, device, i_iter, images, images_source, model, num_classes, pred_src_seg, pred_trg_seg, viz_tensorboard, writer, testloader=None):
-    # if i_iter % 500 == 0:
-    #     tqdm.write(get_loss_string(current_losses, i_iter))
     if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter != 0:
         # print('\ntaking snapshot ...')
         # print('exp =', cfg.TRAIN.SNAPSHOT_DIR)
