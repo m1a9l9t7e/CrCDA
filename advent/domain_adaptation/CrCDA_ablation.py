@@ -100,11 +100,8 @@ def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
         loss_d = 0
         if cfg.TRAIN.USE_DISCRIMINATOR:
             loss_d = update_discriminator(d_main, optimizer, optimizer_d_main, pred_src_layout, pred_trg_layout, source_label, target_label)
-        else:
-            if len(pred_src_layout) > 0:
-                pred_src_layout = [tensor.detach() for tensor in pred_src_layout]
-            if len(pred_trg_layout) > 0:
-                pred_trg_layout = [tensor.detach() for tensor in pred_trg_layout]
+        del pred_src_layout
+        del pred_trg_layout
 
         optimizer.step()
         # --------------- LOGGING -----------------
