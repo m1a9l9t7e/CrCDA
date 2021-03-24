@@ -49,7 +49,7 @@ def entropy_loss_with_regularization(v, i_iter, max_iter=50000):
     x = torch.mul(v, torch.log2(v + 1e-30))
     x = x - torch.mean(x) * get_lambda_reg(i_iter, max_iter)  # regularization
     x = torch.max(x, torch.zeros_like(x))
-    return -torch.sum(x / c)  # paper uses just c instead of (n * h * w * np.log2(c))
+    return -torch.sum(x / (n * h * w * c))  # paper does not include normalization
     # return -torch.sum(x / (n * h * w * np.log2(c)))
     # return -torch.sum(torch.mul(v, torch.log2(v + 1e-30))) / (n * h * w * np.log2(c))
 
