@@ -1,0 +1,13 @@
+SOURCE: GTA
+TARGET: Cityscapes
+NUM_WORKERS: 4
+TRAIN:
+  DA_METHOD: MinEntAEMM
+  MODEL: DeepLabv2
+  RESTORE_FROM: ../../pretrained_models/DeepLab_resnet_pretrained_imagenet.pth
+  MULTI_LEVEL: True
+  LAMBDA_ENT_MAIN: 0.001
+  LAMBDA_ENT_AUX: 0.0002
+  USE_ENT_LOSS_REG: False
+TEST:
+  MODE: best

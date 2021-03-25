@@ -22,10 +22,12 @@ from advent.model.discriminator import get_fc_discriminator
 from advent.model.grl import LambdaWrapper
 from advent.utils.func import adjust_learning_rate, adjust_learning_rate_discriminator
 from advent.utils.func import loss_calc, bce_loss
-from advent.utils.loss import entropy_loss
+from advent.utils.loss import entropy_loss, entropy_loss_with_regularization
 from advent.utils.func import prob_2_entropy
 from advent.utils.viz_segmask import colorize_mask
 from advent.domain_adaptation.CrCDA_ablation import train_crcda as train_crcda_ablation, eval_model
+from advent.model.grl import LambdaWrapper
+from tqdm import trange
 
 
 def train_advent(model, trainloader, targetloader, cfg, testloader=None):
@@ -321,6 +323,114 @@ def train_minent(model, trainloader, targetloader, cfg, testloader=None):
                 draw_in_tensorboard(writer, images_source, i_iter, pred_src_main, num_classes, 'S')
 
 
+def train_minent_AEMM(model, trainloader, targetloader, cfg, testloader=None):
+    ''' UDA training with minEnt '''
+    # Create the model and start the training.
+    input_size_source = cfg.TRAIN.INPUT_SIZE_SOURCE
+    input_size_target = cfg.TRAIN.INPUT_SIZE_TARGET
+    device = cfg.GPU_ID
+    num_classes = cfg.NUM_CLASSES
+    viz_tensorboard = os.path.exists(cfg.TRAIN.TENSORBOARD_LOGDIR)
+    if viz_tensorboard:
+        writer = SummaryWriter(log_dir=cfg.TRAIN.TENSORBOARD_LOGDIR)
+
+    # SEGMNETATION NETWORK
+    model.train()
+    model.to(device)
+    cudnn.benchmark = True
+    cudnn.enabled = True
+
+    # OPTIMIZERS
+    # segnet's optimizer
+    optimizer = optim.SGD(model.optim_parameters(cfg.TRAIN.LEARNING_RATE),
+                          lr=cfg.TRAIN.LEARNING_RATE,
+                          momentum=cfg.TRAIN.MOMENTUM,
+                          weight_decay=cfg.TRAIN.WEIGHT_DECAY)
+
+    # interpolate output segmaps
+    interp = nn.Upsample(size=(input_size_source[1], input_size_source[0]), mode='bilinear',
+                         align_corners=True)
+    interp_target = nn.Upsample(size=(input_size_target[1], input_size_target[0]), mode='bilinear',
+                                align_corners=True)
+
+    trainloader_iter = enumerate(trainloader)
+    targetloader_iter = enumerate(targetloader)
+
+    t = trange(cfg.TRAIN.EARLY_STOP + 1, desc='Loss', leave=True)
+    for i_iter in t:
+
+        # reset optimizers
+        optimizer.zero_grad()
+
+        # adapt LR if needed
+        adjust_learning_rate(optimizer, i_iter, cfg)
+
+        # UDA Training
+        # train on source
+        _, batch = trainloader_iter.__next__()
+        images_source, labels, _, _ = batch
+        pred_src_aux, pred_src_main = model(images_source.cuda(device))
+        if cfg.TRAIN.MULTI_LEVEL:
+            pred_src_aux = interp(pred_src_aux)
+            loss_seg_src_aux = loss_calc(pred_src_aux, labels, device)
+        else:
+            loss_seg_src_aux = 0
+        pred_src_main = interp(pred_src_main)
+        loss_seg_src_main = loss_calc(pred_src_main, labels, device)
+        loss = (cfg.TRAIN.LAMBDA_SEG_MAIN * loss_seg_src_main
+                + cfg.TRAIN.LAMBDA_SEG_AUX * loss_seg_src_aux)
+
+        loss.backward()
+
+        # adversarial training with minent
+        _, batch = targetloader_iter.__next__()
+        images, _, _, _ = batch
+        lambda_wrapper = LambdaWrapper(lambda_=-1)
+        pred_trg_aux, pred_trg_main = model(images.cuda(device), grl_lambda=lambda_wrapper)
+        pred_trg_aux = interp_target(pred_trg_aux)
+        pred_trg_main = interp_target(pred_trg_main)
+        pred_prob_trg_aux = F.softmax(pred_trg_aux)
+        pred_prob_trg_main = F.softmax(pred_trg_main)
+
+        if cfg.TRAIN.USE_ENT_LOSS_REG:
+            loss_target_entp_aux = entropy_loss_with_regularization(pred_prob_trg_aux, i_iter, cfg.TRAIN.ENT_REG_MAX_ITER)
+            loss_target_entp_main = entropy_loss_with_regularization(pred_prob_trg_main, i_iter, cfg.TRAIN.ENT_REG_MAX_ITER)
+        else:
+            loss_target_entp_aux = entropy_loss(pred_prob_trg_aux)
+            loss_target_entp_main = entropy_loss(pred_prob_trg_main)
+
+        loss = -(cfg.TRAIN.LAMBDA_ENT_AUX * loss_target_entp_aux + cfg.TRAIN.LAMBDA_ENT_MAIN * loss_target_entp_main)
+
+        loss.backward()
+
+        optimizer.step()
+        current_losses = {'loss_seg_src_aux': loss_seg_src_aux,
+                          'loss_seg_src_main': loss_seg_src_main,
+                          'loss_ent_aux': loss_target_entp_aux,
+                          'loss_ent_main': loss_target_entp_main}
+
+        t.set_description(get_loss_string(current_losses, i_iter))
+
+        if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter != 0:
+            print_losses(current_losses, i_iter)
+            print('taking snapshot ...')
+            print('exp =', cfg.TRAIN.SNAPSHOT_DIR)
+            torch.save(model.state_dict(),
+                       osp.join(cfg.TRAIN.SNAPSHOT_DIR, f'model_{i_iter}.pth'))
+            eval_model(cfg, model, testloader, i_iter, writer, device)
+            if i_iter >= cfg.TRAIN.EARLY_STOP - 1:
+                break
+        sys.stdout.flush()
+
+        # Visualize with tensorboard
+        if viz_tensorboard:
+            log_losses_tensorboard(writer, current_losses, i_iter)
+
+            if i_iter % cfg.TRAIN.TENSORBOARD_VIZRATE == cfg.TRAIN.TENSORBOARD_VIZRATE - 1:
+                draw_in_tensorboard(writer, images, i_iter, pred_trg_main, num_classes, 'T')
+                draw_in_tensorboard(writer, images_source, i_iter, pred_src_main, num_classes, 'S')
+
+
 def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
     ''' UDA training with CrCDA '''
     # Create the model and start the training.
@@ -583,6 +693,15 @@ def print_losses(current_losses, i_iter):
     tqdm.write(f'iter = {i_iter} {full_string}')
 
 
+def get_loss_string(current_losses, i_iter):
+    list_strings = []
+    for loss_name, loss_value in current_losses.items():
+        if loss_value != 0:
+            list_strings.append(f'{loss_name} = {to_numpy(loss_value):.3f} ')
+    full_string = ' '.join(list_strings)
+    return f'iter = {i_iter} {full_string}'
+
+
 def log_losses_tensorboard(writer, current_losses, i_iter):
     for loss_name, loss_value in current_losses.items():
         writer.add_scalar(f'data/{loss_name}', to_numpy(loss_value), i_iter)
@@ -597,6 +716,8 @@ def to_numpy(tensor):
 
 def train_domain_adaptation(model, trainloader, targetloader, cfg, testloader=None):
     if cfg.TRAIN.DA_METHOD == 'MinEnt':
+        train_minent(model, trainloader, targetloader, cfg, testloader=testloader)
+    if cfg.TRAIN.DA_METHOD == 'MinEntAEMM':
         train_minent(model, trainloader, targetloader, cfg, testloader=testloader)
     elif cfg.TRAIN.DA_METHOD == 'AdvEnt':
         train_advent(model, trainloader, targetloader, cfg, testloader=testloader)

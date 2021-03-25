@@ -94,6 +94,7 @@ class ResNetMulti(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+        self.grl = GradientReversalFunction()
 
     def _make_layer(self, block, planes, blocks, stride=1, dilation=1):
         downsample = None
@@ -116,7 +117,7 @@ class ResNetMulti(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x, grl_lambda=None):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -124,6 +125,8 @@ class ResNetMulti(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
+        if grl_lambda is not None:
+            x = GradientReversalFunction.apply(x, grl_lambda)
         if self.multi_level:
             x1 = self.layer5(x)  # produce segmap 1
         else:
@@ -190,7 +193,7 @@ class ResNetMultiCrCDA(ResNetMulti):
         # Gradient Reversal Layer
         self.grl = GradientReversalFunction()
 
-    def forward(self, x, grl_lambda=LambdaWrapper(lambda_=1)):
+    def forward(self, x, grl_lambda=None):
         """
         TODO: The branch of into seg, cr and cr_mini should happen before layer4 to apply to feature level!
         """
@@ -206,7 +209,8 @@ class ResNetMultiCrCDA(ResNetMulti):
         else:
             x1 = None
         x2 = self.layer4(x)
-        x2 = GradientReversalFunction.apply(x2, grl_lambda)
+        if grl_lambda is not None:
+            x2 = GradientReversalFunction.apply(x2, grl_lambda)
         seg = self.layer6(x2)  # produce segmap 2
         cr_mini = self.layer6_c2(x2)  # produce Mini-patch-scale prediction
         cr = self.layer6_c3(x2)  # produce Patch-scale prediction
