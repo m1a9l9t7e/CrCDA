@@ -718,7 +718,7 @@ def train_domain_adaptation(model, trainloader, targetloader, cfg, testloader=No
     if cfg.TRAIN.DA_METHOD == 'MinEnt':
         train_minent(model, trainloader, targetloader, cfg, testloader=testloader)
     if cfg.TRAIN.DA_METHOD == 'MinEntAEMM':
-        train_minent(model, trainloader, targetloader, cfg, testloader=testloader)
+        train_minent_AEMM(model, trainloader, targetloader, cfg, testloader=testloader)
     elif cfg.TRAIN.DA_METHOD == 'AdvEnt':
         train_advent(model, trainloader, targetloader, cfg, testloader=testloader)
     elif cfg.TRAIN.DA_METHOD == 'CrCDA':

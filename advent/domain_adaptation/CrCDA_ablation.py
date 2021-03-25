@@ -116,8 +116,8 @@ def train_crcda(model, trainloader, targetloader, cfg, testloader=None):
         }
 
         t.set_description(get_loss_string(current_losses, i_iter))
-
         logging(cfg, current_losses, d_main, device, i_iter, images, images_source, model, num_classes, pred_src_seg, pred_trg_seg, viz_tensorboard, writer, testloader=testloader)
+        sys.stdout.flush()
 
         if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter >= cfg.TRAIN.EARLY_STOP - 1:
             break
@@ -249,7 +249,6 @@ def logging(cfg, current_losses, d_main, device, i_iter, images, images_source, 
         torch.save(d_main.state_dict(), snapshot_dir / f'model_{i_iter}_D_main.pth')
         if testloader is not None:
             eval_model(cfg, model, testloader, i_iter, writer, device)
-    sys.stdout.flush()
     # Visualize with tensorboard
     if viz_tensorboard:
         log_losses_tensorboard(writer, current_losses, i_iter)
