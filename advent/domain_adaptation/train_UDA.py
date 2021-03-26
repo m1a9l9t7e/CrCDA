@@ -837,7 +837,6 @@ def train_adapt_seg_net_fourier(model, trainloader, targetloader, cfg, testloade
         t.set_description(get_loss_string(current_losses, i_iter))
 
         if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter != 0:
-            print_losses(current_losses, i_iter)
             print('\ntaking snapshot ...')
             print('exp =', cfg.TRAIN.SNAPSHOT_DIR)
             torch.save(model.state_dict(),
