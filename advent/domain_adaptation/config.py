@@ -101,6 +101,8 @@ cfg.TRAIN.USE_MINI_PATCH_ENT = True
 cfg.TRAIN.USE_PATCH_ENT = True
 cfg.TRAIN.USE_DISCRIMINATOR = True
 cfg.TRAIN.USE_ENT_LOSS_REG = False
+# Fourier params
+cfg.TRAIN.FOURIER_FEATURES = 'all'  # choices=['all', 'ampl', 'pha']
 
 # TEST CONFIGS
 cfg.TEST = EasyDict()
