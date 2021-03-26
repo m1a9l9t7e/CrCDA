@@ -864,7 +864,7 @@ def fourier_transform(cfg, tensor):
     if cfg.TRAIN.FOURIER_FEATURES == 'ampl':  # choices=['all', 'ampl', 'pha']
         ampl, pha = extract_ampl_phase(fft.clone())
         return ampl
-    if cfg.TRAIN.FOURIER_FEATURES == 'all':  # choices=['all', 'ampl', 'pha']
+    if cfg.TRAIN.FOURIER_FEATURES == 'pha':  # choices=['all', 'ampl', 'pha']
         ampl, pha = extract_ampl_phase(fft.clone())
         return pha
 
