@@ -827,12 +827,12 @@ def train_adapt_seg_net_fourier(model, trainloader, targetloader, cfg, testloade
             optimizer_d_aux.step()
         optimizer_d_main.step()
 
-        current_losses = {'loss_seg_src_aux': loss_seg_src_aux,
-                          'loss_seg_src_main': loss_seg_src_main,
-                          'loss_adv_trg_aux': loss_adv_trg_aux,
-                          'loss_adv_trg_main': loss_adv_trg_main,
-                          'loss_d_aux': loss_d_aux,
-                          'loss_d_main': loss_d_main}
+        current_losses = {'l_seg_src_aux': loss_seg_src_aux,
+                          'l_seg_src_main': loss_seg_src_main,
+                          'l_adv_trg_aux': loss_adv_trg_aux,
+                          'l_adv_trg_main': loss_adv_trg_main,
+                          'l_d_aux': loss_d_aux,
+                          'l_d_main': loss_d_main}
 
         t.set_description(get_loss_string(current_losses, i_iter))
 
