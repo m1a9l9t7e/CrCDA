@@ -252,7 +252,8 @@ def train_minent(model, trainloader, targetloader, cfg, testloader=None):
 
     trainloader_iter = enumerate(trainloader)
     targetloader_iter = enumerate(targetloader)
-    for i_iter in tqdm(range(cfg.TRAIN.EARLY_STOP)):
+    t = trange(cfg.TRAIN.EARLY_STOP + 1, desc='Loss', leave=True)
+    for i_iter in t:
 
         # reset optimizers
         optimizer.zero_grad()
@@ -301,7 +302,7 @@ def train_minent(model, trainloader, targetloader, cfg, testloader=None):
                           'loss_ent_aux': loss_target_entp_aux,
                           'loss_ent_main': loss_target_entp_main}
 
-        print_losses(current_losses, i_iter)
+        t.set_description(get_loss_string(current_losses, i_iter))
 
         if i_iter % cfg.TRAIN.SAVE_PRED_EVERY == 0 and i_iter != 0:
             print_losses(current_losses, i_iter)
@@ -382,7 +383,7 @@ def train_minent_AEMM(model, trainloader, targetloader, cfg, testloader=None):
 
         loss.backward()
 
-        # adversarial training with minent
+        # adversarial training with minent AEMM
         _, batch = targetloader_iter.__next__()
         images, _, _, _ = batch
         pred_trg_aux, pred_trg_main = model(images.cuda(device), grl_lambda=LambdaWrapper(lambda_=-1))

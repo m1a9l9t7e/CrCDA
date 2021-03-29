@@ -42,7 +42,7 @@ cfg.EXP_ROOT_EVAL = str(osp.join(cfg.EXP_ROOT, 'eval'))
 cfg.GPU_ID = 0
 # TRAIN CONFIGS
 cfg.TRAIN = EasyDict()
-cfg.TRAIN.SET_SOURCE = 'all'
+cfg.TRAIN.SET_SOURCE = 'train'
 cfg.TRAIN.SET_TARGET = 'train'
 cfg.TRAIN.BATCH_SIZE_SOURCE = 1
 cfg.TRAIN.BATCH_SIZE_TARGET = 1
