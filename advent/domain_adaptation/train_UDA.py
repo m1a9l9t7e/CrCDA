@@ -858,7 +858,9 @@ def train_adapt_seg_net_fourier(model, trainloader, targetloader, cfg, testloade
 
 def fourier_transform(cfg, tensor):
     n, c, h, w = tensor.size()
+    check_values(tensor, 'Posteriors')
     fft = torch.rfft(tensor, signal_ndim=2, onesided=False)
+    check_values(fft, 'FFT')
     if cfg.TRAIN.FOURIER_FEATURES == 'all':  # choices=['all', 'ampl', 'pha']
         return torch.reshape(fft, (n, c * 2, h, w))
     if cfg.TRAIN.FOURIER_FEATURES == 'ampl':  # choices=['all', 'ampl', 'pha']
@@ -869,12 +871,29 @@ def fourier_transform(cfg, tensor):
         return pha
     if cfg.TRAIN.FOURIER_FEATURES == 'debug':  # choices=['all', 'ampl', 'pha']
         ampl, pha = extract_ampl_phase(fft)
-        # nan_indices = ampl[ampl != ampl]
-        # if len(nan_indices) > 0:
-        #     print(nan_indices)
+        check_values(ampl, 'Amplitude')
+        check_values(pha, 'Phase')
         return ampl
 
     raise ValueError('Fourier Feature "' + cfg.TRAIN.FOURIER_FEATURES + '" not implemented')
+
+
+def check_values(tensor, tensor_name):
+    if not check_nan(tensor):
+        print("tensor {} has nan elements".format(tensor_name))
+    if not check_inf(tensor):
+        print("tensor {} has inf elements".format(tensor_name))
+
+
+def check_nan(tensor):
+    nan_indices = tensor[tensor != tensor]
+    return len(nan_indices) > 0
+
+
+def check_inf(tensor):
+    bool_tensor = torch.isinf(tensor)
+    inf_indices = np.argwhere(bool_tensor == True)
+    return len(inf_indices) > 0
 
 
 def extract_ampl_phase(fft_im):
