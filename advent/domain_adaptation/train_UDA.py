@@ -879,19 +879,19 @@ def fourier_transform(cfg, tensor):
 
 
 def check_values(tensor, tensor_name):
-    if not check_nan(tensor):
+    if tensor_has_nan(tensor):
         print("tensor {} has nan elements".format(tensor_name))
-    if not check_inf(tensor):
+    if tensor_has_inf(tensor):
         print("tensor {} has inf elements".format(tensor_name))
 
 
-def check_nan(tensor):
+def tensor_has_nan(tensor):
     nan_indices = tensor[tensor != tensor]
     return len(nan_indices) > 0
 
 
-def check_inf(tensor):
-    bool_tensor = torch.isinf(tensor)
+def tensor_has_inf(tensor):
+    bool_tensor = torch.isinf(tensor).data.cpu().numpy()
     inf_indices = np.argwhere(bool_tensor == True)
     return len(inf_indices) > 0
 
