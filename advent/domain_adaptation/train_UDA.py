@@ -870,6 +870,8 @@ def fourier_transform(cfg, tensor):
     if cfg.TRAIN.FOURIER_FEATURES == 'debug':  # choices=['all', 'ampl', 'pha']
         ampl, pha = extract_ampl_phase(fft.clone())
         ampl = np.ndarray(to_numpy(ampl))
+        if torch.isinf(ampl):
+            print("INF found in tensor!")
         flat_ampl = np.flatten(ampl)
         for index, element in enumerate(flat_ampl):
             if element != element:
