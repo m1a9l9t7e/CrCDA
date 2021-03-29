@@ -865,9 +865,13 @@ def fourier_transform(cfg, tensor):
         return torch.reshape(fft, (n, c * 2, h, w))
     if cfg.TRAIN.FOURIER_FEATURES == 'ampl':  # choices=['all', 'ampl', 'pha']
         ampl, pha = extract_ampl_phase(fft)
+        check_values(ampl, 'Amplitude')
+        check_values(pha, 'Phase')
         return ampl
     if cfg.TRAIN.FOURIER_FEATURES == 'pha':  # choices=['all', 'ampl', 'pha']
         ampl, pha = extract_ampl_phase(fft)
+        check_values(ampl, 'Amplitude')
+        check_values(pha, 'Phase')
         return pha
     if cfg.TRAIN.FOURIER_FEATURES == 'debug':  # choices=['all', 'ampl', 'pha']
         ampl, pha = extract_ampl_phase(fft)
