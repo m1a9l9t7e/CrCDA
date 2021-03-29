@@ -879,21 +879,21 @@ def fourier_transform(cfg, tensor):
 
 
 def check_values(tensor, tensor_name):
-    if tensor_has_nan(tensor):
-        print("tensor {} has nan elements".format(tensor_name))
-    if tensor_has_inf(tensor):
-        print("tensor {} has inf elements".format(tensor_name))
+    if tensor_get_num_nan(tensor) > 0:
+        print("tensor {} has {} nan elements".format(tensor_name, tensor_get_num_nan(tensor)))
+    if tensor_get_num_inf(tensor) > 0:
+        print("tensor {} has {} inf elements".format(tensor_name, tensor_get_num_inf(tensor)))
 
 
-def tensor_has_nan(tensor):
+def tensor_get_num_nan(tensor):
     nan_indices = tensor[tensor != tensor]
-    return len(nan_indices) > 0
+    return len(nan_indices)
 
 
-def tensor_has_inf(tensor):
+def tensor_get_num_inf(tensor):
     bool_tensor = torch.isinf(tensor).data.cpu().numpy()
     inf_indices = np.argwhere(bool_tensor == True)
-    return len(inf_indices) > 0
+    return len(inf_indices)
 
 
 def extract_ampl_phase(fft_im):
