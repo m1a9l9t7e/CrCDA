@@ -858,25 +858,21 @@ def train_adapt_seg_net_fourier(model, trainloader, targetloader, cfg, testloade
 
 def fourier_transform(cfg, tensor):
     n, c, h, w = tensor.size()
-    fft = torch.rfft(tensor.clone(), signal_ndim=2, onesided=False)
+    fft = torch.rfft(tensor, signal_ndim=2, onesided=False)
     if cfg.TRAIN.FOURIER_FEATURES == 'all':  # choices=['all', 'ampl', 'pha']
         return torch.reshape(fft, (n, c * 2, h, w))
     if cfg.TRAIN.FOURIER_FEATURES == 'ampl':  # choices=['all', 'ampl', 'pha']
-        ampl, pha = extract_ampl_phase(fft.clone())
+        ampl, pha = extract_ampl_phase(fft)
         return ampl
     if cfg.TRAIN.FOURIER_FEATURES == 'pha':  # choices=['all', 'ampl', 'pha']
-        ampl, pha = extract_ampl_phase(fft.clone())
+        ampl, pha = extract_ampl_phase(fft)
         return pha
     if cfg.TRAIN.FOURIER_FEATURES == 'debug':  # choices=['all', 'ampl', 'pha']
-        ampl, pha = extract_ampl_phase(fft.clone())
-        ampl = np.ndarray(to_numpy(ampl))
-        if torch.isinf(ampl):
-            print("INF found in tensor!")
-        flat_ampl = np.flatten(ampl)
-        for index, element in enumerate(flat_ampl):
-            if element != element:
-                print("Element at index {} is NaN: {}".format(index, element))
-        return pha
+        ampl, pha = extract_ampl_phase(fft)
+        # nan_indices = ampl[ampl != ampl]
+        # if len(nan_indices) > 0:
+        #     print(nan_indices)
+        return ampl
 
     raise ValueError('Fourier Feature "' + cfg.TRAIN.FOURIER_FEATURES + '" not implemented')
 
@@ -884,7 +880,7 @@ def fourier_transform(cfg, tensor):
 def extract_ampl_phase(fft_im):
     # fft_im: size should be bx3xhxwx2
     fft_amp = fft_im[:,:,:,:,0]**2 + fft_im[:,:,:,:,1]**2
-    fft_amp = torch.sqrt(fft_amp)
+    fft_amp = torch.sqrt(fft_amp + 1e-10)
     fft_pha = torch.atan2( fft_im[:,:,:,:,1], fft_im[:,:,:,:,0] )
     return fft_amp, fft_pha
 
