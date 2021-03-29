@@ -867,6 +867,14 @@ def fourier_transform(cfg, tensor):
     if cfg.TRAIN.FOURIER_FEATURES == 'pha':  # choices=['all', 'ampl', 'pha']
         ampl, pha = extract_ampl_phase(fft.clone())
         return pha
+    if cfg.TRAIN.FOURIER_FEATURES == 'debug':  # choices=['all', 'ampl', 'pha']
+        ampl, pha = extract_ampl_phase(fft.clone())
+        ampl = np.ndarray(to_numpy(ampl))
+        flat_ampl = np.flatten(ampl)
+        for index, element in enumerate(flat_ampl):
+            if element != element:
+                print("Element at index {} is NaN: {}".format(index, element))
+        return pha
 
     raise ValueError('Fourier Feature "' + cfg.TRAIN.FOURIER_FEATURES + '" not implemented')
 
