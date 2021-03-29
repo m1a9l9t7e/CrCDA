@@ -778,7 +778,7 @@ def train_adapt_seg_net_fourier(model, trainloader, targetloader, cfg, testloade
         pred_trg_aux, pred_trg_main = model(images.cuda(device))
         if cfg.TRAIN.MULTI_LEVEL:
             pred_trg_aux = interp_target(pred_trg_aux)
-            d_out_aux = d_aux(F.softmax(fourier_transform(cfg, F.softmax(pred_trg_aux))))
+            d_out_aux = d_aux(fourier_transform(cfg, F.softmax(pred_trg_aux)))
             loss_adv_trg_aux = bce_loss(d_out_aux, source_label)
         else:
             loss_adv_trg_aux = 0
