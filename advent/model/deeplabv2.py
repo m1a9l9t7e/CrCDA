@@ -117,7 +117,7 @@ class ResNetMulti(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x, grl_lambda=None):
+    def forward(self, x, grl_lambda=None, get_feature_maps=False):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -125,6 +125,8 @@ class ResNetMulti(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
+        if get_feature_maps:
+            return x
         if grl_lambda is not None:
             x = GradientReversalFunction.apply(x, grl_lambda)
         if self.multi_level:

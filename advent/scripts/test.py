@@ -54,7 +54,7 @@ def main(config_file, exp_suffix, fixed_test_size=True):
         os.makedirs(cfg.TEST.SNAPSHOT_DIR[0], exist_ok=True)
 
     # init tensorboard writer
-    log_path = osp.join(cfg.EXP_ROOT_EVAL, cfg.EXP_NAME)
+    log_path = osp.join(cfg.EXP_ROOT_EVAL, 'tensorboard', cfg.EXP_NAME)
     writer = SummaryWriter(log_path)
     writer.add_text("Info", str(cfg))
 
@@ -83,27 +83,39 @@ def main(config_file, exp_suffix, fixed_test_size=True):
         return
 
     if args.source:
-        # dataloader source
-        test_dataset_source = GTA5DataSet(root=cfg.DATA_DIRECTORY_SOURCE,
-                                          list_path=cfg.DATA_LIST_SOURCE,
-                                          set=cfg.TEST.SET_SOURCE,
-                                          crop_size=cfg.TEST.INPUT_SIZE_SOURCE,
-                                          mean=cfg.TEST.IMG_MEAN)
-        test_loader_source = data.DataLoader(test_dataset_source,
-                                             batch_size=cfg.TEST.BATCH_SIZE_SOURCE,
-                                             num_workers=cfg.NUM_WORKERS,
-                                             shuffle=False,
-                                             pin_memory=True)
-
         # eval source
+        test_loader_source = get_test_loader_source(cfg)
         interp_source = None
         if fixed_test_size:
             interp_source = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_SOURCE[1], cfg.TEST.OUTPUT_SIZE_SOURCE[0]), mode='bilinear', align_corners=True)
 
-        print("<==:MODE_CHANGE:SOURCE_EVAL:==>")
-        evaluate_domain_adaptation(models, test_loader_source, cfg, descriptor='mIoU_source', interp=interp_source, tensorboard_writer=writer, verbose=False)
+        evaluate_domain_adaptation(models, test_loader_source, cfg, descriptor='source', interp=interp_source, tensorboard_writer=writer, verbose=False)
 
-    # dataloader target
+    # eval target
+    test_loader_target = get_test_loader_target(cfg)
+    interp_target = None
+    if fixed_test_size:
+        interp_target = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_TARGET[1], cfg.TEST.OUTPUT_SIZE_TARGET[0]), mode='bilinear', align_corners=True)
+
+    evaluate_domain_adaptation(models, test_loader_target, cfg, descriptor='target', interp=interp_target, tensorboard_writer=writer)
+
+
+def get_test_loader_source(cfg):
+    test_dataset_source = GTA5DataSet(root=cfg.DATA_DIRECTORY_SOURCE,
+                                      list_path=cfg.DATA_LIST_SOURCE,
+                                      set=cfg.TEST.SET_SOURCE,
+                                      crop_size=cfg.TEST.INPUT_SIZE_SOURCE,
+                                      mean=cfg.TEST.IMG_MEAN)
+    test_loader_source = data.DataLoader(test_dataset_source,
+                                         batch_size=cfg.TEST.BATCH_SIZE_SOURCE,
+                                         num_workers=cfg.NUM_WORKERS,
+                                         shuffle=False,
+                                         pin_memory=True)
+
+    return test_loader_source
+
+
+def get_test_loader_target(cfg):
     test_dataset_target = CityscapesDataSet(root=cfg.DATA_DIRECTORY_TARGET,
                                             list_path=cfg.DATA_LIST_TARGET,
                                             set=cfg.TEST.SET_TARGET,
@@ -117,13 +129,7 @@ def main(config_file, exp_suffix, fixed_test_size=True):
                                          shuffle=False,
                                          pin_memory=True)
 
-    # eval target
-    interp_target = None
-    if fixed_test_size:
-        interp_target = nn.Upsample(size=(cfg.TEST.OUTPUT_SIZE_TARGET[1], cfg.TEST.OUTPUT_SIZE_TARGET[0]), mode='bilinear', align_corners=True)
-
-    print("<==:MODE_CHANGE:TARGET_EVAL:==>")
-    evaluate_domain_adaptation(models, test_loader_target, cfg, descriptor='mIoU_target', interp=interp_target, tensorboard_writer=writer)
+    return test_loader_target
 
 
 if __name__ == '__main__':

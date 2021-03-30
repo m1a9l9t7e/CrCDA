@@ -13,6 +13,7 @@ import torch
 from torch import nn
 from tqdm import tqdm
 from pathlib import Path
+import pickle
 
 from advent.utils.func import per_class_iu, fast_hist
 from advent.utils.serialization import pickle_dump, pickle_load
@@ -30,6 +31,9 @@ def evaluate_domain_adaptation(models, test_loader, cfg, descriptor='mIoU_target
         eval_best(cfg, models,
                   device, test_loader, interp, (interp is not None),
                   verbose, descriptor=descriptor, tensorboard_writer=tensorboard_writer)
+    elif cfg.TEST.MODE == 'get_feature_maps':
+        eval_single_get_feature_maps(cfg, models,
+                    device, test_loader, descriptor)
     else:
         raise NotImplementedError(f"Not yet supported test mode {cfg.TEST.MODE}")
 
@@ -137,6 +141,25 @@ def eval_best(cfg, models,
 
     print('\tBest model:', cur_best_model)
     print('\tBest mIoU:', cur_best_miou)
+
+
+def eval_single_get_feature_maps(cfg, models, device, test_loader, descriptor):
+    assert len(cfg.TEST.RESTORE_FROM) == len(models) == 1, 'Number of models are not matched'
+    for checkpoint, model in zip(cfg.TEST.RESTORE_FROM, models):
+        load_checkpoint_for_evaluation(model, checkpoint, device)
+
+    log_path = osp.join(cfg.EXP_ROOT_EVAL, 'feature_maps', cfg.EXP_NAME, descriptor)
+    os.makedirs(log_path, exist_ok=True)
+
+    # eval
+    for index, batch in tqdm(enumerate(test_loader)):
+        image, label, _, name = batch
+        with torch.no_grad():
+            for model, model_weight in zip(models, cfg.TEST.MODEL_WEIGHT):
+                feature_maps = model(image.cuda(device), get_feature_maps=True)
+                out_path = os.path.join(log_path,  + '{:03d}.pickle'.format(index))
+                with open(out_path, "wb") as f_out:
+                    pickle.dump(feature_maps, f_out)
 
 
 def load_checkpoint_for_evaluation(model, checkpoint, device):
