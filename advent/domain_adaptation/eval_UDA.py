@@ -157,7 +157,8 @@ def eval_single_get_feature_maps(cfg, models, device, test_loader, descriptor):
         with torch.no_grad():
             for model, model_weight in zip(models, cfg.TEST.MODEL_WEIGHT):
                 feature_maps = model(image.cuda(device), get_feature_maps=True)
-                out_path = os.path.join(log_path,  + '{:03d}.pickle'.format(index))
+                feature_maps = feature_maps.data.cpu().numpy()
+                out_path = os.path.join(log_path, '{:03d}.pickle'.format(index))
                 with open(out_path, "wb") as f_out:
                     pickle.dump(feature_maps, f_out)
 
