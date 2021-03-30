@@ -82,7 +82,7 @@ def main(config_file, exp_suffix, fixed_test_size=True):
     if os.environ.get('ADVENT_DRY_RUN', '0') == '1':
         return
 
-    if args.source:
+    if args.source or cfg.TEST.MODE == 'get_feature_maps':
         # eval source
         test_loader_source = get_test_loader_source(cfg)
         interp_source = None
