@@ -1030,7 +1030,7 @@ def train_adapt_seg_net_fourier(model, trainloader, targetloader, cfg, testloade
 def fourier_transform(cfg, tensor):
     n, c, h, w = tensor.size()
     check_values(tensor, 'Posteriors')
-    fft = torch.rfft(tensor, signal_ndim=2, onesided=False, normalize=True)
+    fft = torch.rfft(tensor, signal_ndim=2, onesided=False, normalized=True)
     check_values(fft, 'FFT')
     if cfg.TRAIN.FOURIER_FEATURES == 'all':  # choices=['all', 'ampl', 'pha']
         return torch.reshape(fft, (n, c * 2, h, w))
