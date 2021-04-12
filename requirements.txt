@@ -16,3 +16,4 @@ easydict
 scipy
 future
 cffi
+umap-learn

@@ -25,13 +25,6 @@ import warnings
 warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
 
 
-def calculate_features_threaded(samples):
-    pool = mp.Pool(mp.cpu_count())
-    features = pool.map(calculate_hog, tqdm(samples, desc='HOG multi'))
-    pool.close()
-    return features
-
-
 def pca(x, n_components=50):
     if sp.issparse(x):
         x = x.toarray()
@@ -134,13 +127,14 @@ if __name__ == '__main__':
     key = ''
     # key = 'so-'
 
-    with open('/home/malte/PycharmProjects/CrCDA/fmaps2d/umap-feats-AD.pickle', 'rb') as f:
-    # with open('/home/malte/PycharmProjects/CrCDA/fmaps2d/umap-feats-SO.pickle', 'rb') as f:
-        feature_summary = pickle.load(f)
+    with open('/home/malte/PycharmProjects/Masterarbeit/CrCDA/pickles/umap-feats-SO.pickle', 'rb') as f:
+        features = pickle.load(f)
 
-    with open('/home/malte/PycharmProjects/CrCDA/fmaps2d/label.pickle', 'rb') as f:
-        labels_summary = pickle.load(f)
+    # with open('/home/malte/PycharmProjects/Masterarbeit/CrCDA/pickles/umap-feats-AD.pickle', 'rb') as f:
+    #     labels_summary = pickle.load(f)
 
-    labels_summary_text = ['source' if label < 0.5 else 'target' for label in labels_summary]
-    print(np.shape(feature_summary))
-    plot(feature_summary, labels_summary_text, colors={"source": "#538CBA", "target": "#8B006B"}, s=10, title='training with adaptation')
+    labels_num = np.concatenate([np.zeros([int(np.shape(features)[0]/2)]), np.ones([int(np.shape(features)[0]/2)])])
+    labels = ['source' if label < 0.5 else 'target' for label in labels_num]
+
+    print(np.shape(features))
+    plot(features, labels, colors={"source": "#538CBA", "target": "#8B006B"}, s=10, title='training with adaptation')

@@ -155,7 +155,7 @@ def plot(x, y, save_path=None, ax=None, title=None, draw_legend=True, draw_cente
                 )
 
     # Hide ticks and axis
-    ax.set_xticks([]), ax.set_yticks([]), ax.axis("off")
+    # ax.set_xticks([]), ax.set_yticks([]), ax.axis("off")
 
     if draw_legend:
         legend_handles = [
