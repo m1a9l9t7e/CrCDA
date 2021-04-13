@@ -125,22 +125,23 @@ def get_size(pickle_paths, order='max'):
     return size
 
 
-def get_output_path(output_dir, input_dirs, reduction_method, pca_n):
+def get_output_path(output_dir, input_dirs, reduction_method, pca_n, batches):
     first_input_dir_name = Path(input_dirs[0]).stem
-    stem = '{}-{}-{}'.format(reduction_method, pca_n, first_input_dir_name)
+    stem = '{}-{}-{}-{}'.format(reduction_method, pca_n, first_input_dir_name, 'batches' if batches else 'simple')
     out_path = os.path.join(output_dir, stem)
     os.makedirs(out_path, exist_ok=True)
     return out_path
 
 
-def read_fmaps(input_dir, keys=['source', 'target'], uniform_size='min', max_samples=None, label_suffix=''):
+def read_fmaps(input_dir, keys, uniform_size='min', max_samples=None, label_suffix=''):
     pickle_paths = get_pickle_paths(input_dir, keys)
     size = get_size(pickle_paths, order=uniform_size)
 
-    feature_maps = list()
+    feature_maps = dict()
     labels = list()
 
     for key in keys:
+        _feature_maps = list()
         # iterator = tqdm(pickle_paths[key][:max_samples], desc='Reading pickles from {}'.format(key))
         iterator = pickle_paths[key]
         if max_samples is not None:
@@ -149,8 +150,10 @@ def read_fmaps(input_dir, keys=['source', 'target'], uniform_size='min', max_sam
             with open(path, 'rb') as f:
                 data = pickle.load(f)
             data = resize_feature_maps(data, size)
-            feature_maps.append(data[0])
+            _feature_maps.append(data[0])
             labels.append(key + label_suffix)
+
+        feature_maps[key] = _feature_maps
 
     return feature_maps, labels
 
@@ -168,6 +171,7 @@ def reduce_dimensions(feature_maps, reduction_method, pca_n=None):
     elif reduction_method == 'umap':
         import umap
         features = umap.UMAP(random_state=42).fit_transform(features)
+        # features = umap.UMAP().fit_transform(features)
     if reduction_method:
         print('{}\t:\t{}'.format(reduction_method, np.shape(features)))
 
@@ -175,38 +179,53 @@ def reduce_dimensions(feature_maps, reduction_method, pca_n=None):
 
 
 def visualize_fmaps(input_dir, args, label_suffix=''):
-    feature_maps, labels = read_fmaps(input_dir, uniform_size=args.uniform_size, max_samples=args.max_samples, label_suffix=label_suffix)
-    features = reduce_dimensions(feature_maps, args.reduction_method, args.pca_n)
+    feature_maps, labels = read_fmaps(input_dir, keys=args.keys, uniform_size=args.uniform_size, max_samples=args.max_samples, label_suffix=label_suffix)
+    if args.use_batches:
+        features = None
+        for key in args.keys:
+            print("Reducing Dimensions for key: {}".format(key))
+            _feature_maps = feature_maps[key]
+            _features = reduce_dimensions(_feature_maps, args.reduction_method, args.pca_n)
+            if features is None:
+                features = _features
+            else:
+                features = np.concatenate([features, _features])
+    else:
+        feature_maps = np.concatenate([feature_maps['source'], feature_maps['target']])
+        features = reduce_dimensions(feature_maps, args.reduction_method, args.pca_n)
     return features, labels
 
 
 if __name__ == '__main__':
     start = timeit.default_timer()
     parser = argparse.ArgumentParser(description="Image Sampler")
-    parser.add_argument("--input_dirs", type=str, default=['/home/malte/Downloads/GTA2Cityscapes_SourceOnly_FeatureMaps_layer1',
-                                                           '/home/malte/Downloads/GTA2Cityscapes_AdvEnt_FeatureMaps_layer1'])
-    parser.add_argument("--out", type=str, default="./viz-output-simple-pca", help="Path to output folder")
+    parser.add_argument("--input_dirs", type=str, default=['/home/malte/Downloads/GTA2Cityscapes_SourceOnly_FeatureMaps_layer3',
+                                                           '/home/malte/Downloads/GTA2Cityscapes_AdvEnt_FeatureMaps_layer3'])
+    parser.add_argument("--out", type=str, default="./viz-output-simple-pure-umap", help="Path to output folder")
     parser.add_argument("--reduction_method", type=str, default='umap', choices=['tsne', 'umap'], help="type of low dim viz")
-    parser.add_argument("--use_batches", type=bool, default=True, help="Whether to process the feature vectors for each key in a separate batch.")
     parser.add_argument("--fmaps", type=str, default=None, choices=['single', 'mean'], help="show feature map visualization")
-    parser.add_argument("--pca_n", type=int, default=None, help="Principal components to use for dim reduction")
+    parser.add_argument("--pca_n", type=int, default=100, help="Principal components to use for dim reduction")
     parser.add_argument("--uniform_size", type=str, default='min', choices=['max', 'min'], help="resize source and target fmaps to min or max of the two")
+    parser.add_argument("--use_batches", type=bool, default=True, help="Whether to process the samples for each key individually")
+    parser.add_argument("--keys", default=['source', 'target'], help="")
     parser.add_argument("--fada_labels", type=str, default=None, help="Path to FADA labels. None if not used.")
-    parser.add_argument("--max_samples", type=int, default=250, help="Maximum Number of Images to use")
+    parser.add_argument("--max_samples", type=int, default=500, help="Maximum Number of Images to use")
     args = parser.parse_args()
+    output_path = get_output_path(args.out, args.input_dirs, args.reduction_method, args.pca_n, args.use_batches)
+    print('Saving results at: {}'.format(output_path))
+
     if args.pca_n is not None:
-        args.pca_n = min(args.max_samples*2, args.pca_n) # Can't have more principal components than observations
+        args.pca_n = min(args.max_samples*2, args.pca_n)  # Can't have more principal components than observations
 
     if len(args.input_dirs) == 1:
         features, labels = visualize_fmaps(args.input_dirs[0], args)
     else:
+        print('\n====== Calculating Visualization for SourceOnly Model ======')
         features_so, labels_so = visualize_fmaps(args.input_dirs[0], args)
+        print('\n====== Calculating Visualization for Adapted Model ======')
         features_adapt, labels_adapt = visualize_fmaps(args.input_dirs[1], args, label_suffix='_adapt')
         features = np.concatenate([features_so, features_adapt])
         labels = np.concatenate([labels_so, labels_adapt])
-
-    output_path = get_output_path(args.out, args.input_dirs, args.reduction_method, args.pca_n)
-    print('Saving results at: {}'.format(output_path))
 
     plot(features, labels, colors=color_dict, s=10, save_path=os.path.join(output_path, 'plot.png'))
 
