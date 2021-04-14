@@ -122,12 +122,14 @@ def get_size(pickle_paths, order='max'):
                         size[i] = _size[i]
 
     size = (size[1], size[0])
+    if size[0] == -1 or size[0] == float('inf'):
+        return None
     return size
 
 
 def get_output_path(output_dir, input_dirs, reduction_method, pca_n, batches):
     first_input_dir_name = Path(input_dirs[0]).stem
-    stem = '{}-{}-{}-{}'.format(reduction_method, pca_n, first_input_dir_name, 'batches' if batches else 'simple')
+    stem = '{}-pca{}-{}-{}'.format(reduction_method, pca_n, 'batches' if batches else 'simple', first_input_dir_name)
     out_path = os.path.join(output_dir, stem)
     os.makedirs(out_path, exist_ok=True)
     return out_path
@@ -158,60 +160,93 @@ def read_fmaps(input_dir, keys, uniform_size='min', max_samples=None, label_suff
     return feature_maps, labels
 
 
-def reduce_dimensions(feature_maps, reduction_method, pca_n=None):
-    print('raw\t:\t{}'.format(np.shape(feature_maps)))
+def reduce_dimensions_wrapper(feature_maps, args):
+    print('\traw\t:\t{}'.format(np.shape(feature_maps)))
     features = np.reshape(feature_maps, [np.shape(feature_maps)[0], -1])
-    print('reshape\t:\t{}'.format(np.shape(features)))
-    if pca_n:
-        features = pca(features, pca_n)
-        print('pca\t:\t{}'.format(np.shape(features)))
+    print('\treshape\t:\t{}'.format(np.shape(features)))
+
+    if args.pca_n is not None:
+        if args.batch_size_pca is None:
+            features = reduce_dimensions_pca(features, args.reduction_method, args.pca_n)
+        else:
+            features = call_function_batched(reduce_dimensions_pca, features, args.batch_size_pca, args.reduction_method, args.pca_n)
+
+    if args.reduction_method is not None:
+        if args.batch_size_main is None:
+            features = reduce_dimensions_main(features, args.reduction_method, args.pca_n)
+        else:
+            features = call_function_batched(reduce_dimensions_main, features, args.batch_size_pca, args.reduction_method, args.pca_n)
+
+    return features
+
+
+def call_function_batched(function, features, batch_size, reduction_method, pca_n):
+    n_batches = int(len(features) / batch_size)
+    out_features = None
+    for i in range(n_batches):
+        batch_features = function(features[i * batch_size: (i + 1) * batch_size], reduction_method, pca_n)
+        if out_features is None:
+            out_features = batch_features
+        else:
+            out_features = np.concatenate([out_features, batch_features])
+
+    return out_features
+
+
+def reduce_dimensions_pca(features, reduction_method=None, pca_n=None):
+    features = pca(features, pca_n)
+    print('\tpca\t:\t{}'.format(np.shape(features)))
+    return features
+
+
+def reduce_dimensions_main(features, reduction_method=None, pca_n=None):
     if reduction_method == 'tsne':
         features = TSNE().fit(features)  # openTSNE implementation
         # feature_vectors = TSNE(n_components=2).fit_transform(features)  # sklearn implementation
     elif reduction_method == 'umap':
         import umap
-        features = umap.UMAP(random_state=42).fit_transform(features)
+        features = umap.UMAP(random_state=32).fit_transform(features)
         # features = umap.UMAP().fit_transform(features)
-    if reduction_method:
-        print('{}\t:\t{}'.format(reduction_method, np.shape(features)))
-
+    print('\t{}\t:\t{}'.format(reduction_method, np.shape(features)))
     return features
 
 
 def visualize_fmaps(input_dir, args, label_suffix=''):
     feature_maps, labels = read_fmaps(input_dir, keys=args.keys, uniform_size=args.uniform_size, max_samples=args.max_samples, label_suffix=label_suffix)
-    if args.use_batches:
+    if args.key_batches:
         features = None
         for key in args.keys:
             print("Reducing Dimensions for key: {}".format(key))
             _feature_maps = feature_maps[key]
-            _features = reduce_dimensions(_feature_maps, args.reduction_method, args.pca_n)
+            _features = reduce_dimensions_wrapper(_feature_maps, args)
             if features is None:
                 features = _features
             else:
                 features = np.concatenate([features, _features])
     else:
         feature_maps = np.concatenate([feature_maps['source'], feature_maps['target']])
-        features = reduce_dimensions(feature_maps, args.reduction_method, args.pca_n)
+        features = reduce_dimensions_wrapper(feature_maps, args)
     return features, labels
 
 
 if __name__ == '__main__':
     start = timeit.default_timer()
     parser = argparse.ArgumentParser(description="Image Sampler")
-    parser.add_argument("--input_dirs", type=str, default=['/home/malte/Downloads/GTA2Cityscapes_SourceOnly_FeatureMaps_layer3',
+    parser.add_argument("--input_dirs", type=str, default=[
                                                            '/home/malte/Downloads/GTA2Cityscapes_AdvEnt_FeatureMaps_layer3'])
     parser.add_argument("--out", type=str, default="./viz-output-simple-pure-umap", help="Path to output folder")
     parser.add_argument("--reduction_method", type=str, default='umap', choices=['tsne', 'umap'], help="type of low dim viz")
     parser.add_argument("--fmaps", type=str, default=None, choices=['single', 'mean'], help="show feature map visualization")
-    parser.add_argument("--pca_n", type=int, default=100, help="Principal components to use for dim reduction")
+    parser.add_argument("--pca_n", type=int, default=500, help="Principal components to use for dim reduction")
     parser.add_argument("--uniform_size", type=str, default='min', choices=['max', 'min'], help="resize source and target fmaps to min or max of the two")
-    parser.add_argument("--use_batches", type=bool, default=True, help="Whether to process the samples for each key individually")
+    parser.add_argument("--key_batches", type=bool, default=True, help="Whether to process the samples for each key individually")
+    parser.add_argument("--batch_size_pca", type=int, default=None, help="Maximum batch size for each pca dim reduction step")
+    parser.add_argument("--batch_size_main", type=int, default=None, help="Maximum batch size for each main dim reduction step")
     parser.add_argument("--keys", default=['source', 'target'], help="")
     parser.add_argument("--fada_labels", type=str, default=None, help="Path to FADA labels. None if not used.")
     parser.add_argument("--max_samples", type=int, default=500, help="Maximum Number of Images to use")
     args = parser.parse_args()
-    output_path = get_output_path(args.out, args.input_dirs, args.reduction_method, args.pca_n, args.use_batches)
+    output_path = get_output_path(args.out, args.input_dirs, args.reduction_method, args.pca_n, args.key_batches)
     print('Saving results at: {}'.format(output_path))
 
     if args.pca_n is not None:
@@ -233,7 +268,7 @@ if __name__ == '__main__':
         pickle.dump({'features': features, 'labels': labels}, f_out)
 
     stop = timeit.default_timer()
-    print('Program execution time: {:.2f}s'.format(stop - start))
+    print('\nProgram finished in {:.2f}s'.format(stop - start))
 
 
 
